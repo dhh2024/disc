@@ -13,19 +13,19 @@ The below code loads common basis functions from [src/common_basis.py](src/commo
 
 Naturally, if more refined organisation of common code is needed, one is also free to define whichever other modules one wants.
 
-The central object defined in `common_basis.R` is `con`, which is the [MariaDB](https://mariadb.com/) (MySQL) database connection (a [DBI](https://dbi.r-dbi.org/) connection) through which both ready data is accessed, as well as new data stored for others to reuse. Below, you will see both how to use con to store data in the database, as well as how query it.
+The central object defined in `common_basis.R` is `con`, which is the [MariaDB](https://mariadb.com/) (MySQL) database connection (a [DBI](https://dbi.r-dbi.org/) connection) through which both ready data is accessed, as well as new data stored for others to reuse. Below, you will see both how to use con to store data in the database, as well as how query it. Most of the heavy lifting is done by [dbplyr](https://dbplyr.tidyverse.org/), which transparently translates tidyverse functions into SQL to be executed on the server. This is immensely useful in processing large amounts of data, as the data never needs to be fully loaded into memory, nor transferred to the machine running the analysis in R.
 
-The details of the database connection are stored in [`db_params.yaml`](/db_params.yaml). The password is given separately. **DO NOT INCLUDE THE PASSWORD IN ANY CODE YOU COMMIT TO GITHUB**. If running this notebook, it will ask for the password the first time you run it, and then store it separately in your keyring. This requires a working keyring implementation on your system. Consult the [`keyring`](https://r-lib.github.io/keyring/index.html) package documentation if you have problems. If you cannot get it to work, a second option is to create a `db_secret.yaml` file in the project root directory with `db_pass: [PASSWORD]` as the content. This file is already set to be ignored by Git so it wouldn't accidentally get included in a commit, but still, if you do this, **DON'T MAKE THE MISTAKE OF COMMITTING THE FILE TO GITHUB**.
+The details of the database connection are stored in [`db_params.yaml`](/db_params.yaml). The password is given separately in the file `db_secret.yaml`. This file is already set to be ignored by Git so it wouldn't accidentally get included in a commit, but still, **DON'T MAKE THE MISTAKE OF COMMITTING THE FILE TO GITHUB**.
 
 ```{r setup}
-source(here::here("src/common_basis.R"), local = knitr::knit_global())
+source(here::here("src/common_basis.R"))
 ```
 
-In general, I suggest sticking to [`tidyverse`](https://www.tidyverse.org/) when working with this data (and any data in general). To get to know R `tidyverse`, here are some great tutorials:
- * https://moderndive.com/index.html chapters 1-4 are the best intro into R and tidyverse that I know of.
- * Then, if you're interested in expanding your visual analysis capabilities, following up with https://socviz.co/ is good.
- * Excellent cheatsheets to keep on hand or even print while learning: https://www.rstudio.com/resources/cheatsheets/
- * And finally “R for Data Science” is a central work by the authors of the packages, but I don’t think as good as the above: https://r4ds.had.co.nz/. Can be used to supplement the modern dive if something remains unclear or needs deepening after that.
+In general, I suggest sticking to [`tidyverse`](https://www.tidyverse.org/) when working with this data (and any data in general). To get to know R `tidyverse`, here are some great tutorials: 
+* <https://moderndive.com/index.html> chapters 1-4 are the best intro into R and tidyverse that I know of. 
+* Then, if you're interested in expanding your visual analysis capabilities, following up with <https://socviz.co/> is good. 
+* Excellent cheatsheets to keep on hand or even print while learning: <https://www.rstudio.com/resources/cheatsheets/> 
+* And finally “R for Data Science” is a central work by the authors of the packages, but I don’t think as good as the above: <https://r4ds.had.co.nz/>. Can be used to supplement the modern dive if something remains unclear or needs deepening after that.
 
 # Storing data in the database
 
@@ -37,11 +37,11 @@ d <- tibble(
   genre=c('drama', 'literature', 'science', 'drama')
 )
 
-# this copies the sample data to the database. con is the connection object that is defined in common_basis. Additionally for efficiency reasons, we want the created table to be an Aria table, which the custom copy_to_a function (https://hsci-r.github.io/hscidbutil/reference/copy_to_a.html) offers.
+# This copies the sample data to the database. con is the connection object that is defined in common_basis. Additionally for efficiency reasons, we want the created table to be an Aria table, which the custom copy_to_a function (https://hsci-r.github.io/hscidbutil/reference/copy_to_a.html) offers.
 test_a <- d %>% 
   copy_to_a(con, name="test_a", temporary=FALSE, overwrite=TRUE, indexes=c("year","type","genre"))
 
-#Here, we also create a ColumnStore (https://mariadb.com/kb/en/mariadb-columnstore/) version of the table. ColumnStore tables are very good for large aggregate queries, but support for them is still a bit quirky, so some queries may just not work. They're also slower for queries that mainly seek and return individual full rows of data. Further, it is better not to mix ColumnStore and other tables in queries.
+# Here, we also create a ColumnStore (https://mariadb.com/kb/en/mariadb-columnstore/) version of the table. ColumnStore tables are very good for large aggregate queries, but support for them is still a bit quirky, so some queries may just not work. They're also slower for queries that mainly seek and return individual full rows of data. Further, it is better not to mix ColumnStore and other tables in queries.
 test_c <- test_a %>%
   compute_c(name="test_c", temporary=FALSE, overwrite=TRUE)
 
@@ -65,7 +65,7 @@ test_a %>%
   summarise(books=n(),.groups="drop")
 ```
 
-If you need to explicitly copy data to a local tibble, you can use `collect()` (this can happen for example when some function you want to use on the data doesn't exist as a `dbplyr` translation). 
+If you need to explicitly copy data to a local tibble, you can use `collect()` (this can happen for example when some function you want to use on the data doesn't exist as a `dbplyr` translation).
 
 ```{r}
 test_a %>% 
@@ -81,7 +81,8 @@ test_c %>%
   ggplot(aes(x=year,y=books,fill=type)) +
   scale_y_continuous(breaks=c(0,3)) +
   scale_x_continuous(breaks=seq(1700,1800,by=2)) +
-  geom_col()
+  geom_col() +
+  theme_hsci_discrete()
 ```
 
 If you ever need to see the queries dbplyr creates, you can use `show_query()` or `explain()` for that:
@@ -117,5 +118,11 @@ FROM test_c
 GROUP BY year
 ")) %>%
   arrange(year)
+```
+
+Cleaning up the temporary tables:
+```{r}
+dbExecute(con, "DROP TABLE IF EXISTS test_a")
+dbExecute(con, "DROP TABLE IF EXISTS test_c")
 ```
 

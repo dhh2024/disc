@@ -1,4 +1,7 @@
 db_secret.yaml
+s3_secret.yaml
+.history
+.idea
 .DS_Store
 .Rproj.user
 .Rhistory
