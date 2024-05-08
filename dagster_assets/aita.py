@@ -1,5 +1,5 @@
 from dagster import OpExecutionContext, asset
-from dagster_assets.commands import load_db_from_jsonl, copy_tables_to_columnstore, sample_threads, create_parquets
+from dagster_assets.commands import copy_to_gsheets, load_db_from_jsonl, copy_tables_to_columnstore, sample_threads, create_parquets
 
 
 @asset
@@ -14,7 +14,12 @@ def aita_columnstore_table(context: OpExecutionContext) -> None:
 
 @asset(deps=[aita_aria_table])
 def aita_sample_1(context: OpExecutionContext) -> None:
-    sample_threads(context, "aita_", 1000, 1)
+    sample_threads(context, "aita_", 500, 1)
+
+
+@asset(deps=[aita_sample_1])
+def aita_sample_1_gsheets(context: OpExecutionContext) -> None:
+    copy_to_gsheets(context, "aita", 1)
 
 
 @asset(deps=[aita_aria_table])

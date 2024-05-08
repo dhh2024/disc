@@ -1,7 +1,7 @@
 from dagster import Failure, OpExecutionContext, asset
 from dagster_shell import execute_shell_command
 from hereutil import here
-from dagster_assets.commands import load_db_from_jsonl, copy_tables_to_columnstore, sample_threads, create_parquets
+from dagster_assets.commands import copy_to_gsheets, load_db_from_jsonl, copy_tables_to_columnstore, sample_threads, create_parquets
 
 
 @asset
@@ -25,7 +25,12 @@ def cmw_columnstore_table(context: OpExecutionContext) -> None:
 
 @asset(deps=[cmw_aria_table])
 def cmw_sample_1(context: OpExecutionContext) -> None:
-    sample_threads(context, "cmw_", 1000, 1)
+    sample_threads(context, "cmw_", 500, 1)
+
+
+@asset(deps=[cmw_sample_1])
+def cmw_sample_1_gsheets(context: OpExecutionContext) -> None:
+    copy_to_gsheets(context, "cmw", 1)
 
 
 @asset(deps=[cmw_aria_table])

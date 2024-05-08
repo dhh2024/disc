@@ -15,7 +15,7 @@ eng, con = get_db_connection()
 @click.option('-s', '--sample-number', required=True, help="sample number")
 @click.option('-f', '--force', is_flag=True, help="allow overwriting an existing sample", default=False)
 @click.command
-def sample_threads(table_prefix: str, submissions_to_sample: int, sample_number: int, force: bool):
+def sample_threads(table_prefix: str, submissions: int, sample_number: int, force: bool):
     if force:
         con.execute(text(f"DROP TABLE IF EXISTS {
                     table_prefix}submissions_sample_{sample_number}_a"))
@@ -36,9 +36,9 @@ def sample_threads(table_prefix: str, submissions_to_sample: int, sample_number:
     WITH random_thread_ids AS (
         SELECT id
         FROM {table_prefix}submissions_a
-        WHERE author!="[deleted]" AND author!="AutoModerator" AND author!="[removed]"
+        WHERE author!="[deleted]" AND author!="AutoModerator" AND author!="[removed]" and selftext!="[removed]"
         ORDER BY RAND()
-        LIMIT {submissions_to_sample}
+        LIMIT {submissions}
     )
     SELECT s.*
     FROM {table_prefix}submissions_a s
@@ -60,10 +60,12 @@ def sample_threads(table_prefix: str, submissions_to_sample: int, sample_number:
     # Write local tsv copies
     (pd
         .read_sql_table(f"{table_prefix}submissions_sample_{sample_number}_a", con)
+        .sort_values("created_utc")
         .to_csv(here(f"data/work/samples/{table_prefix}submissions_sample_{sample_number}.tsv"), index=False, sep="\t"))
 
     (pd
         .read_sql_table(f"{table_prefix}comments_sample_{sample_number}_a", con)
+        .sort_values(["link_id", "created_utc"])
         .to_csv(here(f"data/work/samples/{table_prefix}comments_sample_{sample_number}.tsv"), index=False, sep="\t"))
 
 
