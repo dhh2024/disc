@@ -4,6 +4,9 @@ from contextlib import closing
 import click
 import mariadb
 from mariadb.cursors import Cursor
+from hereutil import here, add_to_sys_path
+add_to_sys_path(here())
+from src.common_basis import get_params  # noqa
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -27,19 +30,16 @@ def copy_table(cur: Cursor, tbl: str):
     cur.execute(f"RENAME TABLE {tbl}_b TO {tbl}_c")
 
 
-@click.option('-u', '--username', required=True, help="database username")
-@click.option('-p', '--password', required=True, help="database password")
-@click.option('-h', '--host', required=True, help="database hostname")
-@click.option('-d', '--database', required=True, help="database name")
 @click.option('-tp', '--table_prefix', required=True, help="table prefix")
 @click.command
-def copy_to_columnstore(username: str, password: str, host: str, database: str, table_prefix: str):
+def copy_to_columnstore(table_prefix: str):
     """Copy tables from Aria to ColumnStore"""
-    with closing(mariadb.connect(user=username,
-                                 password=password,
-                                 host=host,
+    p = get_params()['db']
+    with closing(mariadb.connect(user=p['db_user'],
+                                 password=p['db_pass'],
+                                 host=p['db_host'],
                                  port=3306,
-                                 database=database,
+                                 database=p['db_name'],
                                  autocommit=True)) as conn, closing(conn.cursor()) as cur:
         cur: Cursor
         copy_table(cur, f"{table_prefix}submissions")

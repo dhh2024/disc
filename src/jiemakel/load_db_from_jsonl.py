@@ -1,24 +1,27 @@
 #!/usr/bin/env python3
-import dataclasses
-import datetime
-import itertools
-import os
-from dataclasses import dataclass, astuple, field
-from functools import reduce
-from typing import Iterable, TextIO, Any, Callable, TypeVar
-
-import click
-from contextlib import closing
-from more_itertools import chunked
-from json import JSONDecodeError
-import tqdm
-import json
-import logging
-import mariadb
-from mariadb.connections import Connection
-from mariadb.cursors import Cursor
-import pyzstd
 import glob
+import pyzstd
+from mariadb.cursors import Cursor
+from mariadb.connections import Connection
+import mariadb
+import logging
+import json
+import tqdm
+from json import JSONDecodeError
+from more_itertools import chunked
+from contextlib import closing
+import click
+from typing import Iterable, TextIO, Any, Callable, TypeVar
+from functools import reduce
+from dataclasses import dataclass, astuple, field
+import os
+import itertools
+import datetime
+import dataclasses
+from hereutil import here, add_to_sys_path
+add_to_sys_path(here())
+from src.common_basis import get_params  # noqa
+
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -248,29 +251,26 @@ def yield_comments(comments_file: TextIO) -> Iterable[Comment]:
         line_number += 1
 
 
-@click.option('-u', '--username', required=True, help="database username")
-@click.option('-p', '--password', required=True, help="database password")
-@click.option('-h', '--host', required=True, help="database hostname")
-@click.option('-d', '--database', required=True, help="database name")
 @click.option('-s', '--submissions', required=True, multiple=True, help="input jsonl.zst files containing submissions")
 @click.option('-c', '--comments', required=True, multiple=True, help="input jsonl.zst files containing comments")
 @click.option('-tp', '--table-prefix', required=True, help="table prefix")
 @click.command
-def load_db(username: str, password: str, host: str, database: str, submissions: list[str], comments: list[str], table_prefix: str):
+def load_db(submissions: list[str], comments: list[str], table_prefix: str):
+    p = get_params()['db']
     """Load tweets into the database"""
-    with closing(mariadb.connect(user=username,
-                                 password=password,
-                                 host=host,
+    with closing(mariadb.connect(user=p['db_user'],
+                                 password=p['db_pass'],
+                                 host=p['db_host'],
                                  port=3306,
                                  autocommit=True)) as conn, closing(conn.cursor()) as cur:
         cur: Cursor  # type: ignore
-        cur.execute(f"CREATE DATABASE IF NOT EXISTS {database};")
+        cur.execute(f"CREATE DATABASE IF NOT EXISTS {p['db_name']};")
 
-    with closing(mariadb.connect(user=username,
-                                 password=password,
-                                 host=host,
+    with closing(mariadb.connect(user=p['db_user'],
+                                 password=p['db_pass'],
+                                 host=p['db_host'],
                                  port=3306,
-                                 database=database,
+                                 database=p['db_name'],
                                  autocommit=True)) as conn:
         conn: Connection
         logging.info("Preparing submissions tables.")
@@ -282,11 +282,11 @@ def load_db(username: str, password: str, host: str, database: str, submissions:
             submission, recursive=True) for submission in submissions]))
         comments = list(itertools.chain.from_iterable(
             [glob.glob(comment, recursive=True) for comment in comments]))
-        with closing(RecoveringCursor(user=username,
-                                      password=password,
-                                      host=host,
+        with closing(RecoveringCursor(user=p['db_user'],
+                                      password=p['db_pass'],
+                                      host=p['db_host'],
                                       port=3306,
-                                      database=database,
+                                      database=p['db_name'],
                                       autocommit=True)) as cur:
             cur: RecoveringCursor  # type: ignore
             tsize = reduce(lambda tsize, submssion_file_name: tsize +

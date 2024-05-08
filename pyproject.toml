@@ -28,8 +28,15 @@ stanza = "^1.8.2"
 ipywidgets = "^8.1.2"
 spacy = "^3.7.4"
 spacy-udpipe = "^1.0.0"
+dagster = "^1.7.4"
+dagster-webserver = "^1.7.4"
+dagster-mysql = "^0.23.4"
+dagster-shell = "^0.23.4"
 
 [tool.poetry.dev-dependencies]
+
+[tool.dagster]
+module_name = "dagster_assets"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
