@@ -5,7 +5,7 @@ description = ""
 authors = ["DHH24 Hackathon <dhh-hackathon@helsinki.fi>"]
 
 [tool.poetry.dependencies]
-python = "^3.10,<3.13"
+python = ">=3.10,<3.13"
 pandas = "^2.2.2"
 seaborn = "^0.12.2"
 PyMySQL = "^1.1.0"
@@ -24,6 +24,10 @@ findspark = "^2.0.1"
 pyspark = "^3.5.1"
 s3fs = "^2024.3.1"
 pyarrow = "^16.0.0"
+stanza = "^1.8.2"
+ipywidgets = "^8.1.2"
+spacy = "^3.7.4"
+spacy-udpipe = "^1.0.0"
 
 [tool.poetry.dev-dependencies]
 

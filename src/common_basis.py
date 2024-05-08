@@ -1,8 +1,6 @@
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Literal
-import keyring
-import keyring.errors
+from typing import Any
 import getpass
 import sqlalchemy
 import yaml
@@ -18,70 +16,36 @@ from pyspark.sql import SparkSession
 
 
 @cache
-def get_params(target: Literal["db", "s3"]) -> dict[str, str]:
+def get_params() -> dict[str, dict[str, str]]:
     """Get database/S3 parameters from a file"""
-    if here(f"{target}_params.yaml").exists():
-        with here(f"{target}_params.yaml").open('r') as f:
+    if here("params.yaml").exists():
+        with here("params.yaml").open('r') as f:
             d = yaml.safe_load(f)
     else:
         d = dict()
-    d.update(get_secret(target))
+    if here("secret.yaml").exists():
+        with here("secret.yaml").open('r') as f:
+            secret = yaml.safe_load(f)
+        for key, value in secret.items():
+            if key in d:
+                d[key].update(value)
+            else:
+                d[key] = value
     return d
-
-
-@cache
-def get_secret(target: Literal["db", "s3"]) -> dict[str, str]:
-    """Get database/S3 secrets from a file"""
-    if here(f"{target}_secret.yaml").exists():
-        with here(f"{target}_secret.yaml").open('r') as f:
-            return yaml.safe_load(f)
-    else:
-        return dict()
-
-
-def get_db_password() -> str | None:
-    """Get the database password"""
-    db_secret = get_secret('db')
-    if 'db_pass' in db_secret:
-        return db_secret['db_pass']
-    else:
-        try:
-            return keyring.get_password(
-                get_params('db')['db_name'], "DB_PASS")
-        except keyring.errors.NoKeyringError:
-            return None
 
 
 @cache
 def get_db_connection() -> tuple[Engine, Connection]:
     """Connect to the database, returning both the SQLAlchemy engine and connection."""
-    eng = None
-    con = None
-    while con is None:
-        db_params = get_params('db')
-        password = get_db_password()
-        if password is None:
-            password = ""
-        try:
-            eng = sqlalchemy.create_engine(
-                "mariadb+pymysql://" + db_params['db_user'] + ":" + password + "@" + db_params['db_host'] + "/" +
-                db_params['db_name'] +
-                "?charset=utf8mb4&autocommit&local_infile",
-                future=True
-            )
-            con = eng.connect()
-        except SQLAlchemyError as err:
-            eng = None
-            con = None
-            password = getpass.getpass(
-                f"Database password (connection attempt failed with {err}): ")
-            try:
-                if keyring.get_password(db_params['db_name'], "DB_PASS") is not None:
-                    keyring.delete_password(db_params['db_name'], "DB_PASS")
-                keyring.set_password(db_params['db_name'], "DB_PASS", password)
-            except keyring.errors.NoKeyringError:
-                pass
-    return eng, con  # type: ignore
+    db_params = get_params()['db']
+    eng = sqlalchemy.create_engine(
+        "mariadb+pymysql://" + db_params['db_user'] + ":" + db_params['db_pass'] + "@" + db_params['db_host'] + "/" +
+        db_params['db_name'] +
+        "?charset=utf8mb4&autocommit&local_infile",
+        future=True
+    )
+    con = eng.connect()
+    return eng, con
 
 
 def set_session_storage_engine(con: Connection, engine: str):
@@ -92,7 +56,7 @@ def set_session_storage_engine(con: Connection, engine: str):
 @cache
 def get_s3fs() -> s3fs.S3FileSystem:
     """Configure and return an S3FileSystem with the necessary credentials."""
-    params = get_params("s3")
+    params = get_params()['s3']
     d = dict()
     d.update(params)
     d['key'] = params['access_key_id']
@@ -112,7 +76,7 @@ def get_spark(app: str = "default") -> SparkSession:
              .getOrCreate())
     spark.sparkContext.setLogLevel("WARN")
     sc = spark.sparkContext
-    s3_creds = get_params('s3')
+    s3_creds = get_params()['s3']
     # set up credentials for spark
     sc._jsc.hadoopConfiguration().set(
         "fs.s3a.access.key", s3_creds["access_key_id"])
@@ -125,20 +89,20 @@ def get_spark(app: str = "default") -> SparkSession:
 
 def spark_jdbc_opts(con):
     """Configure JDBC options for Spark DataFrameReader and DataFrameWriter."""
-    db_params = get_params('db')
+    db_params = get_params()['db']
     return (con
             .format("jdbc")
             .option("driver", "org.mariadb.jdbc.Driver")
             .option("url", f"jdbc:mysql://{db_params['db_host']}:3306/{db_params['db_name']}?permitMysqlScheme")
             .option("user", db_params['db_user'])
-            .option("password", get_db_password())
+            .option("password", db_params['db_pass'])
             .option("fetchsize", "100000")
             .option("batchsize", "100000"))
 
 
-os.environ['AWS_ENDPOINT_URL'] = get_params('s3')['endpoint_url']
-os.environ['AWS_ACCESS_KEY_ID'] = get_params('s3')['access_key_id']
-os.environ['AWS_SECRET_ACCESS_KEY'] = get_params('s3')['secret_access_key']
+os.environ['AWS_ENDPOINT_URL'] = get_params()['s3']['endpoint_url']
+os.environ['AWS_ACCESS_KEY_ID'] = get_params()['s3']['access_key_id']
+os.environ['AWS_SECRET_ACCESS_KEY'] = get_params()['s3']['secret_access_key']
 
 
 @dataclass
@@ -189,9 +153,8 @@ def get_submission(con: Connection, submissions_table: str, comments_table: str,
         WHERE id = :id
                      """), dict(id=id)).fetchall()))
     submission.children = children[submission.id]
-    print(submission.id, children[submission.id])
     return submission
 
 
-__all__ = ["get_db_connection", "get_params", "get_secret",
-           "get_db_password", "set_session_storage_engine", "get_s3fs", "get_spark", "spark_jdbc_opts", "Submission", "Comment", "get_submission"]
+__all__ = ["get_db_connection", "get_params", "set_session_storage_engine", "get_s3fs",
+           "get_spark", "spark_jdbc_opts", "Submission", "Comment", "get_submission"]

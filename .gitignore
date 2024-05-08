@@ -1,5 +1,4 @@
-db_secret.yaml
-s3_secret.yaml
+secret.yaml
 .history
 .idea
 .DS_Store

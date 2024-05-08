@@ -157,6 +157,19 @@
       ],
       "Hash": "543776ae6848fde2f48ff3816d0628bc"
     },
+    "beeswarm": {
+      "Package": "beeswarm",
+      "Version": "0.4.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "grDevices",
+        "graphics",
+        "stats",
+        "utils"
+      ],
+      "Hash": "0f4e9d8caa6feaa7e409ae6c30f2ca66"
+    },
     "bit": {
       "Package": "bit",
       "Version": "4.0.5",
@@ -574,6 +587,36 @@
       ],
       "Hash": "15e9634c0fcd294799e9b2e929ed1b86"
     },
+    "ggbeeswarm": {
+      "Package": "ggbeeswarm",
+      "Version": "0.7.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "beeswarm",
+        "cli",
+        "ggplot2",
+        "lifecycle",
+        "vipor"
+      ],
+      "Hash": "899f28fe0388b7f687d7453429c2474d"
+    },
+    "gghsci": {
+      "Package": "gghsci",
+      "Version": "1.2.2",
+      "Source": "Repository",
+      "Repository": "https://hsci-r.r-universe.dev",
+      "Requirements": [
+        "dplyr",
+        "ggplot2",
+        "grDevices",
+        "magrittr",
+        "rlang",
+        "scales"
+      ],
+      "Hash": "2967033a8fb4ec42560599037166ccc6"
+    },
     "ggplot2": {
       "Package": "ggplot2",
       "Version": "3.5.1",
@@ -736,7 +779,7 @@
     },
     "hscidbutil": {
       "Package": "hscidbutil",
-      "Version": "0.1.12",
+      "Version": "0.2.0",
       "Source": "Repository",
       "Repository": "https://hsci-r.r-universe.dev",
       "Requirements": [
@@ -745,7 +788,6 @@
         "dbplyr",
         "dplyr",
         "here",
-        "keyring",
         "magrittr",
         "purrr",
         "readr",
@@ -753,7 +795,7 @@
         "stringr",
         "yaml"
       ],
-      "Hash": "ef762c04e6fddb5e29609ea1838f9b14"
+      "Hash": "9ef25b18cf7e73eddd078d528533b797"
     },
     "htmltools": {
       "Package": "htmltools",
@@ -1569,6 +1611,18 @@
         "rlang"
       ],
       "Hash": "c03fa420630029418f7e6da3667aac4a"
+    },
+    "vipor": {
+      "Package": "vipor",
+      "Version": "0.4.7",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Requirements": [
+        "R",
+        "graphics",
+        "stats"
+      ],
+      "Hash": "86493c62c14eb78140f1725003958a77"
     },
     "viridisLite": {
       "Package": "viridisLite",
