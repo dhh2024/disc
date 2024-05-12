@@ -28,11 +28,15 @@ with open("requirements.txt", "w") as rf, open("rocm-env.yml", "w") as rof, open
             if type(version) is not str:
                 if "git" in version:
                     dependency = f"git+{version['git']}"
+                elif "url" in version:
+                    dependency = f"{dependency} @ {version['url']}"
                 else:
                     if "extras" in version:
-                        dependency = f"{dependency}[{','.join(version['extras'])}]"
+                        dependency = f"{dependency}[{
+                            ','.join(version['extras'])}]"
                     if "version" in version:
-                        dependency = f"{dependency}{version['version'].replace('^', '>=')}"
+                        dependency = f"{dependency}{
+                            version['version'].replace('^', '>=')}"
             else:
                 dependency = f"{dependency}{version.replace('^', '>=')}"
             rf.write(f"{dependency}\n")

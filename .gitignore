@@ -1,4 +1,5 @@
 secret.yaml
+.venv
 .history
 .idea
 .DS_Store

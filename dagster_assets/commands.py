@@ -4,7 +4,7 @@ from hereutil import here
 
 
 def load_db_from_jsonl(context: OpExecutionContext, table_prefix: str) -> None:
-    _, ret = execute_shell_command(f'python src/jiemakel/load_db_from_jsonl.py -tp {table_prefix} -c "data/input/{table_prefix}/comments/*.zst" -s "data/input/{table_prefix}/submissions/*.zst"',
+    _, ret = execute_shell_command(f'python src/jiemakel/load_db_from_jsonl.py -tp {table_prefix}_ -c "data/input/{table_prefix}/comments/*.zst" -s "data/input/{table_prefix}/submissions/*.zst"',
                                    cwd=str(here()),
                                    output_logging="STREAM", log=context.log)
     if ret != 0:
@@ -37,6 +37,14 @@ def create_parquets(context: OpExecutionContext, tables: list[str]) -> None:
 
 def copy_to_gsheets(context: OpExecutionContext, table_prefix: str, sample_number: int) -> None:
     _, ret = execute_shell_command(f"Rscript src/jiemakel/copy_to_gsheets.R -p {table_prefix} -s {sample_number}",
+                                   cwd=str(here()),
+                                   output_logging="STREAM", log=context.log)
+    if ret != 0:
+        raise Failure(f"Command failed with exit code {ret}")
+
+
+def parse_dataset(context: OpExecutionContext, table: str) -> None:
+    _, ret = execute_shell_command(f"python src/jiemakel/parse_dataset.py -t {table}",
                                    cwd=str(here()),
                                    output_logging="STREAM", log=context.log)
     if ret != 0:

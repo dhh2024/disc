@@ -22,9 +22,11 @@ def copy_table(cur: Cursor, tbl: str):
     cur.execute(f"""
                 INSERT INTO {tbl}_b SELECT * FROM {tbl}_a
                 WHERE
-                    id != "t1_dbkufkd" AND
-                    id != "t1_evflaqh" AND
-                    id != "t1_cxbbpkf"
+                    id != 28998310477 AND
+                    id != 32375592089 AND
+                    id != 28135793967 AND
+                    id != 259618892 AND
+                    id != 733065370
                 """)
     cur.execute(f"DROP TABLE IF EXISTS {tbl}_c")
     cur.execute(f"RENAME TABLE {tbl}_b TO {tbl}_c")

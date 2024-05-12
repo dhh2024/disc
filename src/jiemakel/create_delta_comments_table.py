@@ -14,7 +14,7 @@ con.execute(text("ALTER TABLE cmw_delta_comments_a DISABLE KEYS"))
 con.execute(text("""
 INSERT INTO cmw_delta_comments_a
 WITH delta_comments AS (
-    SELECT DISTINCT parent_id AS id
+    SELECT DISTINCT parent_comment_id AS id
     FROM cmw_comments_a
     WHERE author = "DeltaBot" AND MATCH (body) AGAINST ("Confirmed" IN BOOLEAN MODE)
 )

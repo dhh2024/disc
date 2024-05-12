@@ -1,18 +1,120 @@
-from collections import defaultdict
+from collections import OrderedDict, defaultdict
 from dataclasses import dataclass, field
-from typing import Any
-import getpass
+from typing import Any, Generic, Sequence, TypeVar
 import sqlalchemy
 import yaml
 import s3fs
 from functools import cache
 from hereutil import here
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.future import Engine, Connection
+import mariadb
+from mariadb.cursors import Cursor as MDBCursor
+from mariadb.connections import Connection as MDBConnection
+
 import findspark
 import os
 from pyspark.sql import SparkSession
+import logging
+from more_itertools import chunked
+
+logging.basicConfig(
+    format='%(asctime)s %(levelname)-8s %(message)s',
+    level=logging.INFO,
+    datefmt='%Y-%m-%d %H:%M:%S')
+
+
+class RecoveringCursor:
+    def __init__(self, **config):
+        self.config = config
+        self.con = mariadb.connect(**self.config)
+        self.cur = self.con.cursor()
+
+    def execute(self, statement: str, data: Sequence = (), buffered=None) -> 'RecoveringCursor':
+        self.cur.execute(statement, data, buffered)
+        return self
+
+    def executemany(self, stmt: str, data: Sequence) -> 'RecoveringCursor':
+        if len(data) > 0:
+            chunk_size = 1000
+            for db in chunked(data, chunk_size):
+                while True:
+                    try:
+                        for db2 in chunked(db, chunk_size):
+                            self.cur.executemany(stmt, db2)
+                            if self.cur.warnings > 0:
+                                self.cur.execute("SHOW WARNINGS")
+                                warnings = list(
+                                    filter(lambda warning: warning[1] != 1062, self.cur.fetchall()))
+                                if len(warnings) > 0:
+                                    logging.warning(warnings)
+                        break
+                    except mariadb.InterfaceError:
+                        logging.error(db)
+                        self.cur.close()
+                        self.con.close()
+                        self.con = mariadb.connect(**self.config)
+                        self.cur = self.con.cursor()
+                        chunk_size = max(chunk_size // 2, 1)
+                    except (mariadb.DataError, mariadb.ProgrammingError):
+                        logging.exception(data)
+                        raise
+        return self
+
+    def fetchall(self) -> Sequence[tuple]:
+        while True:
+            try:
+                return self.cur.fetchall()
+            except mariadb.InterfaceError:
+                logging.error("InterfaceError")
+                self.cur.close()
+                self.con.close()
+                self.con = mariadb.connect(**self.config)
+                self.cur = self.con.cursor()
+
+    def fetchmany(self, size: int = 0) -> Sequence[tuple]:
+        while True:
+            try:
+                return self.cur.fetchmany(size)
+            except mariadb.InterfaceError:
+                logging.error("InterfaceError")
+                self.cur.close()
+                self.con.close()
+                self.con = mariadb.connect(**self.config)
+                self.cur = self.con.cursor()
+
+    def fetchone(self) -> tuple:
+        while True:
+            try:
+                return self.cur.fetchone()
+            except mariadb.InterfaceError:
+                logging.error("InterfaceError")
+                self.cur.close()
+                self.con.close()
+                self.con = mariadb.connect(**self.config)
+                self.cur = self.con.cursor()
+
+    def __iter__(self):
+        return iter(self.fetchone, None)
+
+    def close(self):
+        self.cur.close()
+        self.con.close()
+
+
+def base36encode(integer: int) -> str:
+    chars = '0123456789abcdefghijklmnopqrstuvwxyz'
+    sign = '-' if integer < 0 else ''
+    integer = abs(integer)
+    result = ''
+    while integer > 0:
+        integer, remainder = divmod(integer, 36)
+        result = chars[remainder] + result
+    return sign + result
+
+
+def base36decode(base36: str) -> int:
+    return int(base36, 36)
 
 
 @cache
@@ -34,7 +136,16 @@ def get_params() -> dict[str, dict[str, str]]:
     return d
 
 
-@cache
+def get_recovering_cursor() -> RecoveringCursor:
+    p = get_params()['db']
+    return RecoveringCursor(user=p['db_user'],
+                            password=p['db_pass'],
+                            host=p['db_host'],
+                            database=p['db_name'],
+                            port=3306,
+                            autocommit=True)
+
+
 def get_db_connection() -> tuple[Engine, Connection]:
     """Connect to the database, returning both the SQLAlchemy engine and connection."""
     db_params = get_params()['db']
@@ -44,7 +155,7 @@ def get_db_connection() -> tuple[Engine, Connection]:
         "?charset=utf8mb4&autocommit&local_infile",
         future=True
     )
-    con = eng.connect()
+    con = eng.connect().execution_options(isolation_level="AUTOCOMMIT")
     return eng, con
 
 
@@ -138,7 +249,7 @@ class Comment:
 
 def get_submission(con: Connection, submissions_table: str, comments_table: str, id: str) -> Submission:
     comments = list(map(lambda r: Comment(**r._asdict()), con.execute(text(f"""
-        SELECT * 
+        SELECT *
         FROM {comments_table}
         WHERE link_id = :id
                      """), dict(id=id)).fetchall()))
@@ -148,7 +259,7 @@ def get_submission(con: Connection, submissions_table: str, comments_table: str,
     for c in comments:
         c.children = children[c.id]
     submission = next(map(lambda r: Submission(**r._asdict()), con.execute(text(f"""
-        SELECT * 
+        SELECT *
         FROM {submissions_table}
         WHERE id = :id
                      """), dict(id=id)).fetchall()))
@@ -156,5 +267,42 @@ def get_submission(con: Connection, submissions_table: str, comments_table: str,
     return submission
 
 
-__all__ = ["get_db_connection", "get_params", "set_session_storage_engine", "get_s3fs",
-           "get_spark", "spark_jdbc_opts", "Submission", "Comment", "get_submission"]
+K = TypeVar('K')
+V = TypeVar('V')
+
+
+class LRUCache(Generic[K, V]):
+    def __init__(self, max_size=4):
+        if max_size <= 0:
+            raise ValueError
+
+        self.max_size = max_size
+        self._items: OrderedDict[K, V] = OrderedDict()
+
+    def _move_latest(self, key) -> None:
+        # Order is in descending priority, i.e. first element
+        # is latest.
+        self._items.move_to_end(key, last=False)
+
+    def __getitem__(self, key: K, default: V | None = None) -> V | None:
+        if key not in self._items:
+            return default
+
+        value = self._items[key]
+        self._move_latest(key)
+        return value
+
+    def __setitem__(self, key: K, value: V):
+        self._items[key] = value
+        self._move_latest(key)
+
+    def _trim_to_size(self):
+        if len(self._items) > self.max_size:
+            keys = list(self._items.keys())
+            keys_to_evict = keys[-(len(self._items) - self.max_size):]
+            for key in keys_to_evict:
+                self._items.pop(key)
+
+
+__all__ = ["get_db_connection", "get_recovering_cursor", "RecoveringCursor", "get_params", "set_session_storage_engine", "get_s3fs",
+           "get_spark", "spark_jdbc_opts", "Submission", "Comment", "get_submission", "LRUCache"]
