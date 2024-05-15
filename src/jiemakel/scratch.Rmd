@@ -17,6 +17,25 @@ source(here::here("src/common_basis.R"))
 # Counts of submissions and comments through time
 
 ```{r}
+ls(pattern=("[^_]*_comments_c")) %>% 
+  map(\(x)
+      get(x) %>% 
+        mutate(year=year(created_utc)) %>% 
+        count(year) %>% 
+        collect() %>% 
+        mutate(dataset=str_extract(x, "[^_]*"))) %>% 
+  reduce(union_all) %>%
+  ggplot(aes(x=year,y=n, color=dataset)) +
+  geom_line() +
+  geom_point() +
+  theme_hsci_discrete() +
+  scale_y_continuous(labels=scales::number, breaks=seq(0,5000000, by=500000)) +
+  scale_x_continuous(breaks=2010:2023) +
+  ggtitle("Comments by year")
+```
+
+
+```{r}
 cmw_submissions_c %>% 
   mutate(year=year(created_utc)) %>% 
   filter(year<2024L) %>%

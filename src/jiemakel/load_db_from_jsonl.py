@@ -279,6 +279,9 @@ def load_db(submissions: list[str], comments: list[str], table_prefix: str):
                 processed_files_tsize += os.path.getsize(comments_file_name)
         logging.info('Insert complete.')
         with closing(conn.cursor()) as cur:
+            logging.info('Pruning unlinked comments.')
+            cur.execute(f"DELETE FROM {table_prefix}comments_i WHERE link_id NOT IN (SELECT id FROM {table_prefix}submissions_i)")
+        with closing(conn.cursor()) as cur:
             logging.info('Adding indices.')
             cur.execute(
                 f"""

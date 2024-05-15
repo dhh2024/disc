@@ -11,7 +11,7 @@ from sqlalchemy.future import Engine, Connection
 import mariadb
 from mariadb.cursors import Cursor as MDBCursor
 from mariadb.connections import Connection as MDBConnection
-
+import pandas as pd
 import findspark
 import os
 from pyspark.sql import SparkSession
@@ -302,6 +302,16 @@ class LRUCache(Generic[K, V]):
             keys_to_evict = keys[-(len(self._items) - self.max_size):]
             for key in keys_to_evict:
                 self._items.pop(key)
+
+
+def list_datasets_in_s3() -> list[str]:
+    """List all datasets in the S3 bucket."""
+    return get_s3fs().ls('/dhh24/disc/parquet')
+
+
+def open_parquet_dataframe_in_s3(name: str) -> pd.DataFrame:
+    """Open a parquet file in the S3 bucket and return a pandas DataFrame."""
+    return pd.read_parquet(f"s3://dhh24/disc/parquet/{name}.parquet", engine='pyarrow')
 
 
 __all__ = ["get_db_connection", "get_recovering_cursor", "RecoveringCursor", "get_params", "set_session_storage_engine", "get_s3fs",
