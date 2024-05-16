@@ -17,69 +17,38 @@ source(here::here("src/common_basis.R"))
 # Counts of submissions and comments through time
 
 ```{r}
-ls(pattern=("[^_]*_comments_c")) %>% 
+ls(pattern=("[^_]*_submissions_[a]")) %>% 
   map(\(x)
       get(x) %>% 
         mutate(year=year(created_utc)) %>% 
         count(year) %>% 
         collect() %>% 
-        mutate(dataset=str_extract(x, "[^_]*"))) %>% 
+        mutate(dataset=x)) %>% 
   reduce(union_all) %>%
   ggplot(aes(x=year,y=n, color=dataset)) +
   geom_line() +
   geom_point() +
   theme_hsci_discrete() +
-  scale_y_continuous(labels=scales::number, breaks=seq(0,5000000, by=500000)) +
-  scale_x_continuous(breaks=2010:2023) +
-  ggtitle("Comments by year")
-```
-
-
-```{r}
-cmw_submissions_c %>% 
-  mutate(year=year(created_utc)) %>% 
-  filter(year<2024L) %>%
-  count(year) %>%
-  mutate(subreddit="cmw") %>%
-  collect() %>%
-  union_all(
-    eli5_submissions_c %>% 
-      mutate(year=year(created_utc)) %>% 
-      filter(year<2024L) %>%
-      count(year) %>%
-      mutate(subreddit="eli5") %>%
-      collect()
-  ) %>%
-  ggplot(aes(x=year,y=n, color=subreddit)) +
-  geom_line() +
-  geom_point() +
-  theme_hsci_discrete() +
-  scale_y_continuous(labels=scales::number, breaks=seq(0,500000, by=50000)) +
-  scale_x_continuous(breaks=2010:2023) +
+  scale_y_continuous(labels=scales::number, breaks=seq(0,1000000, by=50000)) +
+  scale_x_continuous(breaks=seq(2005,2024,by=2)) +
   ggtitle("Submissions by year")
 ```
 
 
 ```{r}
-cmw_comments_c %>% 
-  mutate(year=year(created_utc)) %>% 
-  filter(year<2024L) %>%
-  count(year) %>%
-  mutate(subreddit="cmw") %>%
-  collect() %>%
-  union_all(
-    eli5_comments_c %>% 
-      mutate(year=year(created_utc)) %>% 
-      filter(year<2024L) %>%
-      count(year) %>%
-      mutate(subreddit="eli5") %>%
-      collect()
-  ) %>%  
-  ggplot(aes(x=year,y=n, color=subreddit)) +
+ls(pattern=("[^_]*_comments_[a]")) %>% 
+  map(\(x)
+      get(x) %>% 
+        mutate(year=year(created_utc)) %>% 
+        count(year) %>% 
+        collect() %>% 
+        mutate(dataset=x)) %>% 
+  reduce(union_all) %>%
+  ggplot(aes(x=year,y=n, color=dataset)) +
   geom_line() +
   geom_point() +
   theme_hsci_discrete() +
-  scale_y_continuous(labels=scales::number, breaks=seq(0,5000000, by=500000)) +
+  scale_y_continuous(labels=scales::number, breaks=seq(0,50000000, by=2000000)) +
   scale_x_continuous(breaks=2010:2023) +
   ggtitle("Comments by year")
 ```
@@ -140,10 +109,10 @@ cmw_delta_comments_a %>%
 ```{r}
 delta_comment_depth <- tbl(con, sql("
 WITH RECURSIVE delta_comment_ancestors AS (
-    SELECT id, parent_id AS ancestor_id, 1 AS height 
+    SELECT id, parent_comment_id AS ancestor_id, 0 AS height 
     FROM cmw_delta_comments_a
   UNION ALL
-    SELECT ca.id, c.parent_id AS ancestor_id, height + 1 AS height
+    SELECT ca.id, c.parent_comment_id AS ancestor_id, height + 1 AS height
     FROM delta_comment_ancestors ca, cmw_comments_a c
     WHERE ca.ancestor_id = c.id
 ),
@@ -153,20 +122,21 @@ delta_comment_depth AS (
   GROUP BY id
 )
 SELECT * FROM delta_comment_depth
-"))
+")) %>% compute_a()
+```
+
+
+```{r}
 delta_comment_depth %>%
-  inner_join(cmw_comments_a, join_by(id)) %>%
-  transmute(year=year(created_utc),depth) %>%
-  filter(year<2024L) %>%
-  ggplot(aes(x=year,group=year,y=depth)) +
-  geom_boxplot() +
+  count(depth) %>%
+  ggplot(aes(x=depth,y=n)) +
+  geom_col() +
   theme_hsci_discrete() +
   scale_y_continuous(labels=scales::number) +
-  scale_x_continuous(breaks=2013:2023) +
-  coord_cartesian(ylim=c(0,200)) +
-  xlab("Year") +
-  ylab("Depth of delta comment")
-
+  scale_x_continuous(breaks=1:190) +
+  coord_cartesian(xlim=c(0,15)) +
+  xlab("Depth of delta'd comment") +
+  ylab("N")
 ```
 
 
