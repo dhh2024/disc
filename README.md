@@ -68,6 +68,7 @@ The schema of the comments table is:
 Additionally, there are some downstream tables for various purposes. These are:
 
 - `cmw_delta_comments_a` contains all comments in ChangeMyView where the OP gives a delta. This can be used to find the comment receiving the delta through `parent_comment_id`, and the whole discussion using `link_id`.
+- `stop_arguing_stop_arguing_comments_a` contains all comments where someone actually says "stop arguing".
 - Base data samples also have a copy in the database, with the suffix `_sample_[number]`.
 - The samples have also been automatically linguistically parsed with [Stanza](https://stanfordnlp.github.io/stanza/). The parsed data is in tables with the suffix `_parse`, detailed further below.
 
