@@ -6,7 +6,7 @@ See [BEST-PRACTICES.md](BEST-PRACTICES.md) for repository layout and coding best
 
 Thus, to get the project running, do the following:
 
-1. Ensure you have compatible versions of R, Python and Poetry available on the system. If you have a conda-compatible tool, you can also use that to install these in an isolated environment, e.g. through `[micromamba/mamba/conda] create -f environment.yml -p ./.venv`.
+1. Ensure you have compatible versions of R, Python and Poetry available on the system. If you have a conda-compatible tool, you can also use that to install these in an isolated environment, e.g. through `[micromamba/mamba/conda env] create -f environment.yml -p ./.venv`.
 2. Install R dependencies with `Rscript -e 'renv::restore()'`
 3. Install Python dependencies with `poetry install`
 
