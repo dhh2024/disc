@@ -292,6 +292,8 @@ def load_db(submissions: list[str], comments: list[str], table_prefix: str):
                 ADD UNIQUE INDEX (created_utc, id),
                 ADD UNIQUE INDEX (author, id),
                 ADD UNIQUE INDEX (author_id, id),
+                ADD UNIQUE INDEX (subreddit_id, id),
+                ADD UNIQUE INDEX (subreddit, id),
                 ADD UNIQUE INDEX (score, id)
                 """)
             cur.execute(
@@ -303,6 +305,8 @@ def load_db(submissions: list[str], comments: list[str], table_prefix: str):
                 ADD UNIQUE INDEX (link_id, id),
                 ADD UNIQUE INDEX (author, id),
                 ADD UNIQUE INDEX (author_id, id),
+                ADD UNIQUE INDEX (subreddit_id, id),
+                ADD UNIQUE INDEX (subreddit, id),
                 ADD UNIQUE INDEX (score, id)
                 """)
             logging.info('Done adding indices. Renaming tables.')
