@@ -73,7 +73,43 @@ Additionally, there are some downstream tables for various purposes. These are:
 
 ## Data model for linguistically parsed data
 
-The parsed data is in tables with the suffix `_parse`. The schema of the main parse tables is:
+The parsed data is in tables with the suffix `[prefix]_parse_a`. The schema of the main parse tables is:
+
+- text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+- sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+- word_pos SMALLINT UNSIGNED NOT NULL, -- word position in the sentence
+- word_id INT UNSIGNED NOT NULL, -- word_id that references words_a which contains the actual text of the word
+- lemma_id INT UNSIGNED NOT NULL, -- lemma_id that references lemmas_a which contains the actual text of the lemma
+- upos_id TINYINT UNSIGNED NOT NULL, -- upos_id that references upos_a which contains the actual upos
+- xpos_id TINYINT UNSIGNED NOT NULL, -- xpos_id that references upos_a which contains the actual xpos
+- feats_id SMALLINT UNSIGNED, -- feats_id that references feats_a which contains the actual feats
+- head_pos SMALLINT UNSIGNED NOT NULL, -- the word position of the head of the dependency relation
+- deprel_id TINYINT UNSIGNED NOT NULL, -- deprel_id that references deprel_a which contains the actual dependency relation
+- misc_id SMALLINT UNSIGNED, -- misc_id that references misc_a which contains the actual misc text associated with the word
+- start_char SMALLINT UNSIGNED NOT NULL, -- start character position of the word in the submission/comment
+- end_char SMALLINT UNSIGNED NOT NULL, -- end character position of the word in the submission/comment
+
+Additional parse information is available in three further tables. First, `[prefix]_parse_constituents_a` contains [constituency parsing](https://stanfordnlp.github.io/stanza/constituency.html) results, with the following schema:
+
+- text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+- sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+- node_id SMALLINT UNSIGNED NOT NULL, -- node id of the constituent within the tree (root is 0)
+- label_id INT UNSIGNED NOT NULL, -- references words_a which contains the actual text of the label in the tree
+- parent_node_id SMALLINT UNSIGNED NOT NULL, -- parent node id of the constituent within the tree
+
+Second, `[prefix]_parse_entities_a` contains [extracted named entities](https://stanfordnlp.github.io/stanza/ner.html), with the following schema:
+
+- name VARCHAR(255) NOT NULL, -- the name of the entity
+- text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+- sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+- start_word_pos INT UNSIGNED NOT NULL, -- word position in the sentence where the entity mention starts
+- end_word_pos INT UNSIGNED NOT NULL, -- word position in the sentence where the entity mention ends
+
+Finally, `[prefix]_parse_sentiments_a` contains [sentiment analysis](https://stanfordnlp.github.io/stanza/sentiment.html) results, with the following schema:
+
+- text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+- sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+- sentiment TINYINT NOT NULL, -- sentiment score of the sentence
 
 ## Using this repo inside the CSC environment
 
