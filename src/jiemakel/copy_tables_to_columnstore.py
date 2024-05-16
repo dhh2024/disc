@@ -26,7 +26,10 @@ def copy_table(cur: Cursor, tbl: str):
                     id != 32375592089 AND
                     id != 28135793967 AND
                     id != 259618892 AND
-                    id != 733065370
+                    id != 733065370 AND
+                    id != 32161839844 AND
+                    id != 2446327918 AND
+                    id != 2447848152
                 """)
     cur.execute(f"DROP TABLE IF EXISTS {tbl}_c")
     cur.execute(f"RENAME TABLE {tbl}_b TO {tbl}_c")

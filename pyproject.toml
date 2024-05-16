@@ -2,6 +2,7 @@
 name = "disc"
 version = "0.1.0"
 description = ""
+package-mode = false
 authors = ["DHH24 Hackathon <dhh-hackathon@helsinki.fi>"]
 
 [tool.poetry.dependencies]
