@@ -24,6 +24,7 @@ number_of_comments = df_comments['link_id'].value_counts()
 print(number_of_comments)
 ax = number_of_comments.hist(bins=100)
 ax.set_title('Number of comments per submission')
+ax.set_xlabel('Number of comments')
 ########################
 
 
@@ -44,18 +45,28 @@ ax.set_title('Number of tokens per submission')
 # %% number of ∆ 
 
 #anotate deltabot awarding comment
-df_comments['delta_awarded'] = df_comments[(df_comments['author'] == 'DeltaBot')]['body'].apply(lambda x: 'Confirmed: 1 delta awarded to' in x)
+df_comments['bot_delta_awarded'] = df_comments[(df_comments['author'] == 'DeltaBot')]['body'].apply(lambda x: 'Confirmed: 1 delta awarded to' in x)
 
 #set all to False
-df_comments['delta_awarded'] = df_comments['delta_awarded'].apply(lambda x: False if math.isnan(x) else True)
+df_comments['bot_delta_awarded'] = df_comments['bot_delta_awarded'].apply(lambda x: False if math.isnan(x) else True)
 
 #ids of OP's comments that they are awarding delta
-op_delta_comments_id = df_comments[df_comments['delta_awarded'] == True]['parent_comment_id']
+op_delta_comments_id = df_comments[df_comments['bot_delta_awarded'] == True]['parent_comment_id']
 
 #∆ awarding comment
 delta_awarded_comments_id = df_comments[df_comments['id'].isin(op_delta_comments_id)]['parent_comment_id']
 print(delta_awarded_comments_id)
 #########################
+
+
+
+# %% ∆ awarded comments 
+df_comments = df_comments.dropna()
+df_comments['delta'] = False
+df_comments.loc[df_comments['id'].isin(op_delta_comments_id), 'delta'] = True
+df_comments[df_comments['delta'] == True]
+df_comments.to_csv('../../data/work/samples/cmw_comments_sample_1_delta_annotation.tsv', sep='\t')
+
 
 # %% number of tokens in delta awarded comments
 number_of_tokens_in_delta_award = df_comments[df_comments['id'].isin(delta_awarded_comments_id)]['number_of_tokens']
@@ -75,7 +86,6 @@ print('Number of delta awarded comments with discussion: ' + str(number_of_delta
 
 
 # %% number of replies in delta awarded thread
-
 print(len(delta_awarded_comments_id))
 def find_number_of_comments(parent_comment_id):
     number_of_replies = 0
@@ -87,31 +97,13 @@ def find_number_of_comments(parent_comment_id):
 df_comments['number_of_replies'] = df_comments[df_comments['id'].isin(delta_awarded_comments_id)]['parent_comment_id'].apply(lambda x: int(find_number_of_comments(x)))
 #########################
 
-# %% compute how much time it took to reply to the comment
-from datetime import datetime
-df_comments.created_utc
-time_taken_to_reply = []
-for _,row in df_comments.iterrows():
-    comment_time = datetime.strptime(str(row['created_utc']), '%Y-%m-%d %H:%M:%S')
-    submission_time = datetime.strptime(df_submissions[df_submissions['id'] == row.link_id]['created_utc'].squeeze(), '%Y-%m-%d %H:%M:%S')
-    time_taken_to_reply.append(comment_time - submission_time )
-    #df_comments['time_taken_to_reply'] = df_comments.apply(lambda row: row['created_utc'] - df_submissions[df_submissions['id'] == row.link_id]['created_utc']) #
-#########################
 
-# %%
+# %% Visualize number of comments before delta was awarded
 df_number_of_replies = df_comments['number_of_replies'].dropna()
 print(len(df_number_of_replies))
 ax = df_number_of_replies.hist(bins = 20)
 ax.set_title('Number of replies in threads')
 df_number_of_replies.value_counts()
-#########################
-
-# %%
-print(df_comments[df_comments['number_of_replies'] == 0]['body']) 
-#########################
-
-# %%
-df_comments[df_comments['id'].isin(delta_awarded_comments_id)]['body']
 #########################
 
 
@@ -137,6 +129,8 @@ for i, row in df_comments[df_comments['id'].isin(delta_awarded_comments_id)].ite
 
 # %%
 df_comments_delta = df_comments[df_comments['id'].isin(threads)]
-df_comments_delta.to_csv('../../data/work/samples/cmw_comments_sample_1_deltas_thread.tsv')
+df_comments_delta.to_csv('../../data/work/samples/cmw_comments_sample_1_deltas_thread.tsv', sep='\t')
 #########################
 
+
+# %%
