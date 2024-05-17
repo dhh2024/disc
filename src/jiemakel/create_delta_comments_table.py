@@ -4,7 +4,7 @@
 from hereutil import here, add_to_sys_path
 from sqlalchemy import text
 add_to_sys_path(here())
-from src.common_basis import get_db_connection  # noqa
+from src.common_basis import copy_to_columnstore, get_db_connection  # noqa
 
 _, con = get_db_connection()
 
@@ -24,4 +24,5 @@ INNER JOIN cmw_comments_a c USING (id)
 """))
 con.execute(text("ALTER TABLE cmw_delta_comments_a ENABLE KEYS"))
 
+copy_to_columnstore(con, "cmw_delta_comments")
 # %%
