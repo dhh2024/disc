@@ -177,3 +177,16 @@ cmw_submissions_a %>%
   ylab("Proportion of submissions having a delta")
 ```
 
+```{r}
+cmw_delta_comments_a %>% 
+  group_by(link_id) %>% 
+  summarise(earliest_delta=min(created_utc),.groups="drop") %>%
+  inner_join(cmw_comments_a, join_by(link_id)) %>%
+  mutate(before=created_utc<earliest_delta) %>%
+  count(link_id, before) %>%
+  ggplot(aes(x=before,y=n)) +
+  geom_boxplot() +
+  theme_hsci_discrete()
+```
+
+
