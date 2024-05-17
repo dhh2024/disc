@@ -11,8 +11,10 @@ cmw_submissions_sample_path = data_path + "cmw_submissions_sample_1.tsv"
 #####################
 
 
+
+
 # %% download cmw sample
-df_comments = pd.read_csv(cmw_comments_sample_path, sep='\t', on_bad_lines='skip')
+df_comments = pd.read_csv(cmw_comments_sample_path, sep='\t')
 df_submissions = pd.read_csv(cmw_submissions_sample_path, sep='\t')
 
 
@@ -31,9 +33,12 @@ df_comments.created_utc
 time_taken_to_reply = []
 for _,row in df_comments.iterrows():
     print(row['id'])
-    comment_time = datetime.strptime(str(row['created_utc']), '%Y-%m-%d %H:%M:%S')
-    submission_time = datetime.strptime(df_submissions[df_submissions['id'] == row.link_id]['created_utc'].squeeze(), '%Y-%m-%d %H:%M:%S')
-    time_taken_to_reply.append((comment_time - submission_time).total_seconds()/360)
+    try:
+        comment_time = datetime.strptime(str(row['created_utc']), '%Y-%m-%d %H:%M:%S')
+        submission_time = datetime.strptime(df_submissions[df_submissions['id'] == row.link_id]['created_utc'].squeeze(), '%Y-%m-%d %H:%M:%S')
+        time_taken_to_reply.append((comment_time - submission_time))
+    except: 
+        time_taken_to_reply.append(None)    
 df_comments['time_taken_to_reply'] = time_taken_to_reply
 
 # %% plot time taken to reply
@@ -64,5 +69,10 @@ df_comments[df_comments['delta'] == True]['time_taken_to_reply'].hist(bins = 100
 
 id_posts_delta_comments =  df_comments[df_comments['delta'] == True]['link_id']
 df_submissions[(df_submissions['id'] == row.link_id)] #& (df_submissions['time_taken_to_reply'] )
-
+df_comments.groupby
 df_comments[df_comments['created_utc'] < df_comments[df_comments['delta'] == True]['created_utc']]
+
+# %%
+df_comments.to_csv('../../data/work/samples/cmw_comments_sample_1_delta_annotation.tsv', sep='\t')
+
+# %%

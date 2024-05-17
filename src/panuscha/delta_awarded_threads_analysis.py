@@ -61,9 +61,9 @@ print(delta_awarded_comments_id)
 
 
 # %% ∆ awarded comments 
-df_comments = df_comments.dropna()
+#df_comments = df_comments.dropna()
 df_comments['delta'] = False
-df_comments.loc[df_comments['id'].isin(op_delta_comments_id), 'delta'] = True
+df_comments.loc[df_comments['id'].isin(delta_awarded_comments_id ), 'delta'] = True
 df_comments[df_comments['delta'] == True]
 df_comments.to_csv('../../data/work/samples/cmw_comments_sample_1_delta_annotation.tsv', sep='\t')
 
@@ -131,6 +131,14 @@ for i, row in df_comments[df_comments['id'].isin(delta_awarded_comments_id)].ite
 df_comments_delta = df_comments[df_comments['id'].isin(threads)]
 df_comments_delta.to_csv('../../data/work/samples/cmw_comments_sample_1_deltas_thread.tsv', sep='\t')
 #########################
+
+
+# %%
+df_comments_delta = df_comments[df_comments['id'].isin(threads)]
+df_comments[df_comments['delta'] == True].to_csv('../../data/work/samples/cmw_comments_sample_1_only_delta_comments.tsv', sep='\t')
+
+# %%
+df_comments.to_csv('../../data/work/samples/cmw_comments_sample_1_delta_annotation.tsv', sep='\t')
 
 
 # %%
