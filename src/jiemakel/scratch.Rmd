@@ -104,28 +104,6 @@ cmw_delta_comments_a %>%
 
 ```
 
-
-
-```{r}
-delta_comment_depth <- tbl(con, sql("
-WITH RECURSIVE delta_comment_ancestors AS (
-    SELECT id, parent_comment_id AS ancestor_id, 0 AS height 
-    FROM cmw_delta_comments_a
-  UNION ALL
-    SELECT ca.id, c.parent_comment_id AS ancestor_id, height + 1 AS height
-    FROM delta_comment_ancestors ca, cmw_comments_a c
-    WHERE ca.ancestor_id = c.id
-),
-delta_comment_depth AS (
-  SELECT id, MAX(height) AS depth
-  FROM delta_comment_ancestors
-  GROUP BY id
-)
-SELECT * FROM delta_comment_depth
-")) %>% compute_a()
-```
-
-
 ```{r}
 delta_comment_depth %>%
   count(depth) %>%
@@ -138,7 +116,6 @@ delta_comment_depth %>%
   xlab("Depth of delta'd comment") +
   ylab("N")
 ```
-
 
 ```{r}
 cmw_submissions_a %>% 
@@ -178,15 +155,22 @@ cmw_submissions_a %>%
 ```
 
 ```{r}
-cmw_delta_comments_a %>% 
+cmw_delta_comments_c %>% 
   group_by(link_id) %>% 
-  summarise(earliest_delta=min(created_utc),.groups="drop") %>%
-  inner_join(cmw_comments_a, join_by(link_id)) %>%
-  mutate(before=created_utc<earliest_delta) %>%
-  count(link_id, before) %>%
-  ggplot(aes(x=before,y=n)) +
-  geom_boxplot() +
-  theme_hsci_discrete()
+  summarise(earliest_delta=min(created_utc),latest_delta=max(created_utc),.groups="drop") %>%
+  inner_join(cmw_comments_c, join_by(link_id)) %>%
+  mutate(time=case_when(
+    created_utc<earliest_delta ~ "before first",
+    created_utc>latest_delta ~ "after last",
+    T ~ "after first, before last")) %>%
+  count(link_id, time) %>%
+  ggplot(aes(x=time,group=time,y=n)) +
+  coord_cartesian(ylim=c(0,100)) +
+  scale_y_continuous(breaks=seq(0,100,by=10)) +
+  geom_boxplot(show.legend=F) +
+  theme_hsci_discrete() +
+  ylab("N comments") +
+  xlab("After / before delta given")
 ```
 
 
