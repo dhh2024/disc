@@ -99,10 +99,10 @@ def count_unique_participants(parent_comment_id):
             parent_comment = df_comments[df_comments['id'] == parent_comment_id]
             parent_comment_id = parent_comment['parent_comment_id'].squeeze()
             #number_of_replies += 1
-            print(parent_comment_id)
+            #print(parent_comment_id)
 
             parent_comment_ids.add(parent_comment_id)
-            print(parent_comment_ids)
+            #print(parent_comment_ids)
     return len(parent_comment_ids)
 
 df_comments['unique_participants'] = df_comments[df_comments['id'].isin(delta_awarded_comments_id)]['parent_comment_id'].apply(lambda x: int(count_unique_participants(x)))
@@ -145,7 +145,7 @@ sns.barplot(x=participant_counts.index, y=participant_counts.values, palette='vi
 plt.title('Number of Comment Chains per Unique Participant Count')
 plt.xlabel('Number of Unique Participants')
 plt.ylabel('Number of Comment Chains')
-plt.xticks(rotation=90)  # Rotate x-axis labels if there are many
+#plt.xticks(rotation=90)  # Rotate x-axis labels if there are many
 plt.show()
 
 # cool but again: is there "double counting"? 
@@ -153,3 +153,99 @@ plt.show()
 # is each of them counted as a separate "comment chain"?
 # and thus, is the title misleading?
 #########################
+
+
+
+
+# %% failed attempt at: n% of delta threads where it's just m participants
+#df_comments['unique_participants'] = df_comments[df_comments['id'].isin(delta_awarded_comments_id)]['parent_comment_id'].apply(lambda x: int(count_unique_participants(x)))
+df_comments['unique_participants'] = df_comments['parent_comment_id'].apply(lambda x: count_unique_participants(x))
+df_comments['unique_participants'] = df_comments['unique_participants'].convert_dtypes().dropna()
+
+participants_delta = df_comments[df_comments['id'].isin(delta_awarded_comments_id)]['unique_participants']
+participants_non_delta = df_comments[~df_comments['id'].isin(delta_awarded_comments_id)]['unique_participants']
+
+delta_counts = participants_non_delta.value_counts().sort_index()
+non_delta_counts = participants_delta.value_counts().sort_index()
+
+# Plotting the bar plot
+'''
+plt.figure(figsize=(14, 8))
+sns.barplot(x=[non_delta_counts.index, delta_counts.index], y=[non_delta_counts.values, delta_counts.values], palette='viridis')
+plt.title('Number of Comment Chains per Unique Participant Count')
+plt.xlabel('Number of Unique Participants')
+plt.ylabel('Number of Comment Chains')
+#plt.xticks(rotation=90)  # Rotate x-axis labels if there are many
+plt.show()
+'''
+#########################
+
+# %% not quite: n% of delta threads where it's just m participants
+# Sample DataFrame setup (replace this with your actual DataFrame)
+# df_comments = pd.read_csv('your_comments_data.csv')
+# delta_awarded_comments_id = set([...])  # Replace with your actual set of delta awarded comment IDs
+
+# Separate the DataFrame into two groups
+awarded_comments = df_comments[df_comments['id'].isin(delta_awarded_comments_id)]
+non_awarded_comments = df_comments[~df_comments['id'].isin(delta_awarded_comments_id)]
+
+# Count the number of unique participants for both groups
+awarded_counts = awarded_comments['unique_participants'].value_counts().sort_index()
+non_awarded_counts = non_awarded_comments['unique_participants'].value_counts().sort_index()
+
+# Create a DataFrame for plotting
+count_df = pd.DataFrame({
+    'Awarded': awarded_counts,
+    'Non-Awarded': non_awarded_counts
+}).fillna(0)  # Fill NaN values with 0 for counts that may not exist in one of the groups
+
+# Plotting the grouped bar chart
+count_df.plot(kind='bar', figsize=(14, 8), width=0.8)
+plt.title('Comparison of Unique Participants in Comment Chains')
+plt.xlabel('Number of Unique Participants')
+plt.ylabel('Number of Comment Chains')
+plt.legend(title='Comment Type')
+plt.xticks(rotation=0)  # Rotate x-axis labels if needed
+plt.show()
+#########################
+
+
+# %% not quite: n% of delta threads where it's just m participants
+total_counts = df_comments['unique_participants'].value_counts().sort_index()
+
+awarded_ratios = awarded_counts / total_counts
+non_awarded_ratios = non_awarded_counts / total_counts
+
+# Create a DataFrame for plotting
+ratio_df = pd.DataFrame({
+    'Awarded': awarded_ratios,
+    'Non-Awarded': non_awarded_ratios
+}).fillna(0)  # Fill NaN values with 0 for counts that may not exist in one of the groups
+
+# Plotting the grouped bar chart
+ratio_df.plot(kind='bar', figsize=(14, 8), width=0.8)
+plt.title('Comparison of Unique Participants in Comment Chains')
+plt.xlabel('Number of Unique Participants')
+plt.ylabel('Number of Comment Chains')
+plt.legend(title='Comment Type')
+plt.xticks(rotation=0)  # Rotate x-axis labels if needed
+plt.show()
+#########################
+
+
+# %% n% of delta threads where it's just m participants
+# Calculating the counts of unique participant numbers
+awarded_counts = awarded_comments['unique_participants'].value_counts().sort_index()
+total_counts = df_comments['unique_participants'].value_counts().sort_index()
+awarded_ratios = awarded_counts / sum(awarded_counts)
+awarded_ratios = awarded_ratios.dropna()
+
+# Plotting the bar plot
+plt.figure(figsize=(14, 8))
+sns.barplot(x=awarded_ratios.index, y=awarded_ratios.values, palette='viridis')
+plt.title('Proportion of unique participants in delta threads')
+plt.xlabel('Number of Unique Participants')
+plt.ylabel('Proportion of Comment Chains')
+#plt.xticks(rotation=90)  # Rotate x-axis labels if there are many
+plt.show()
+##########################
