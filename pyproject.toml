@@ -8,7 +8,7 @@ authors = ["DHH24 Hackathon <dhh-hackathon@helsinki.fi>"]
 python = ">=3.10,<3.13"
 pandas = "^2.2.2"
 seaborn = "^0.12.2"
-PyMySQL = "^1.1.0"
+PyMySQL = "^1.1.1"
 hereutil = "^0.1.3"
 keyring = "^25.2.0"
 jupytext = "^1.16.1"
