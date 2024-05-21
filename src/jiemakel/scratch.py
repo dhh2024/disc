@@ -17,3 +17,6 @@ cur = get_recovering_cursor()
 
 cur.execute("""SELECT * FROM words_a WHERE word IN (?, ?)""", ('IN','in')).fetchall()
 # %%
+fs = get_s3fs()
+
+# %%

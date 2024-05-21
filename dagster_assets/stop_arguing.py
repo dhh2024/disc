@@ -1,4 +1,6 @@
-from dagster import OpExecutionContext, asset
+from dagster import Failure, OpExecutionContext, asset
+from dagster_shell import execute_shell_command
+from hereutil import here
 from dagster_assets.commands import copy_to_gsheets, load_db_from_jsonl, copy_tables_to_columnstore, parse_dataset, sample_threads, create_parquets
 
 
@@ -10,6 +12,15 @@ def stop_arguing_aria_table(context: OpExecutionContext) -> None:
 @asset(deps=[stop_arguing_aria_table])
 def stop_arguing_columnstore_table(context: OpExecutionContext) -> None:
     copy_tables_to_columnstore(context, "stop_arguing_")
+
+
+@asset(deps=[stop_arguing_aria_table])
+def stop_arguing_stop_arguing_comments_table(context: OpExecutionContext) -> None:
+    _, ret = execute_shell_command("python src/jiemakel/create_stop_arguing_comments_table.py",
+                                   cwd=str(here()),
+                                   output_logging="STREAM", log=context.log)
+    if ret != 0:
+        raise Failure(f"Command failed with exit code {ret}")
 
 
 @asset(deps=[stop_arguing_aria_table])

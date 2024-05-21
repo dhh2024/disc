@@ -72,19 +72,19 @@ class Submission:
             cur.execute(f"DROP TABLE IF EXISTS {table_prefix}submissions_i")
             cur.execute(f"""
                 CREATE TABLE {table_prefix}submissions_i (
-                    subreddit_id BIGINT UNSIGNED NOT NULL,
-                    subreddit VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
-                    id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-                    permalink VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
-                    created_utc TIMESTAMP NOT NULL,
-                    author_id BIGINT UNSIGNED,
-                    author VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
-                    title VARCHAR(510) CHARACTER SET utf8mb4 NOT NULL,
-                    url VARCHAR(510) CHARACTER SET utf8mb4,
-                    selftext TEXT CHARACTER SET utf8mb4,
-                    score INTEGER NOT NULL,
-                    num_comments INTEGER UNSIGNED NOT NULL,
-                    upvote_ratio FLOAT
+                    subreddit_id BIGINT UNSIGNED NOT NULL, -- the numeric id of the subreddit
+                    subreddit VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL, -- the name of the subreddit
+                    id BIGINT UNSIGNED NOT NULL PRIMARY KEY, -- the unique numeric id of the submission
+                    permalink VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL, -- an URL to the submission
+                    created_utc TIMESTAMP NOT NULL, -- the time the submission was created (in the UTC timezone)
+                    author_id BIGINT UNSIGNED, -- the numeric id of the author, if available
+                    author VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL, -- the username of the author
+                    title VARCHAR(510) CHARACTER SET utf8mb4 NOT NULL, -- the title of the submission
+                    url VARCHAR(510) CHARACTER SET utf8mb4, -- an URL if the submission was a link submission
+                    selftext TEXT CHARACTER SET utf8mb4, -- the text of the submission if it wasn't a link-only submission
+                    score INTEGER NOT NULL, -- the score of the submission as calculated by subtracting the number of downvotes from the number of upvotes
+                    num_comments INTEGER UNSIGNED NOT NULL, -- the number of comments on the submission as reported by Reddit
+                    upvote_ratio FLOAT -- the ratio of the number of upvotes to the number of downvotes. Not available for old data.
                 ) ENGINE=ARIA CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TRANSACTIONAL=0 PAGE_CHECKSUM=0""")
 
     def as_tuple(self):
@@ -144,18 +144,18 @@ class Comment:
             cur.execute(f"DROP TABLE IF EXISTS {table_prefix}comments_i;")
             cur.execute(f"""
                 CREATE TABLE {table_prefix}comments_i (
-                    subreddit_id BIGINT UNSIGNED NOT NULL,
-                    subreddit VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
-                    id BIGINT UNSIGNED NOT NULL PRIMARY KEY,
-                    permalink VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
-                    link_id BIGINT UNSIGNED NOT NULL,
-                    parent_comment_id BIGINT UNSIGNED,
-                    created_utc TIMESTAMP NOT NULL,
-                    author_id BIGINT UNSIGNED,
-                    author VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL,
-                    body TEXT CHARACTER SET utf8mb4,
-                    score INTEGER NOT NULL,
-                    controversiality BOOLEAN
+                    subreddit_id BIGINT UNSIGNED NOT NULL, -- the numeric id of the subreddit
+                    subreddit VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL, -- the name of the subreddit
+                    id BIGINT UNSIGNED NOT NULL PRIMARY KEY, -- the unique numeric id of the comment
+                    permalink VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL, -- an URL to the comment
+                    link_id BIGINT UNSIGNED NOT NULL, -- the id of the submission this comment belongs to
+                    parent_comment_id BIGINT UNSIGNED, -- the id of the parent comment. If not given, the parent is the submission (link_id)
+                    created_utc TIMESTAMP NOT NULL, -- the time the comment was created (in the UTC timezone)
+                    author_id BIGINT UNSIGNED, -- the numeric id of the author, if available
+                    author VARCHAR(255) CHARACTER SET utf8mb4 NOT NULL, -- the username of the author
+                    body TEXT CHARACTER SET utf8mb4, -- the text of the comment (quoted sections begin with &gt;)
+                    score INTEGER NOT NULL, -- the score of the comment as calculated by subtracting the number of downvotes from the number of upvotes
+                    controversiality BOOLEAN -- comments with lots of up and downvotes are considered controversial by Reddit
                 ) ENGINE=ARIA CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TRANSACTIONAL=0 PAGE_CHECKSUM=0""")
 
     def as_tuple(self):
@@ -279,6 +279,10 @@ def load_db(submissions: list[str], comments: list[str], table_prefix: str):
                 processed_files_tsize += os.path.getsize(comments_file_name)
         logging.info('Insert complete.')
         with closing(conn.cursor()) as cur:
+            logging.info('Pruning unlinked comments.')
+            cur.execute(f"DELETE FROM {table_prefix}comments_i WHERE link_id NOT IN (SELECT id FROM {
+                        table_prefix}submissions_i)")
+        with closing(conn.cursor()) as cur:
             logging.info('Adding indices.')
             cur.execute(
                 f"""
@@ -288,6 +292,8 @@ def load_db(submissions: list[str], comments: list[str], table_prefix: str):
                 ADD UNIQUE INDEX (created_utc, id),
                 ADD UNIQUE INDEX (author, id),
                 ADD UNIQUE INDEX (author_id, id),
+                ADD UNIQUE INDEX (subreddit_id, id),
+                ADD UNIQUE INDEX (subreddit, id),
                 ADD UNIQUE INDEX (score, id)
                 """)
             cur.execute(
@@ -299,6 +305,8 @@ def load_db(submissions: list[str], comments: list[str], table_prefix: str):
                 ADD UNIQUE INDEX (link_id, id),
                 ADD UNIQUE INDEX (author, id),
                 ADD UNIQUE INDEX (author_id, id),
+                ADD UNIQUE INDEX (subreddit_id, id),
+                ADD UNIQUE INDEX (subreddit, id),
                 ADD UNIQUE INDEX (score, id)
                 """)
             logging.info('Done adding indices. Renaming tables.')

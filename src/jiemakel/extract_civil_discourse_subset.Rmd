@@ -1,0 +1,71 @@
+---
+title: "Data-driven civil discourse subset creation"
+date: "`r Sys.Date()`"
+output: 
+  html_notebook:
+    code_folding: hide
+    toc: yes
+  md_document:
+    variant: gfm 
+    toc: yes
+---
+
+```{r setup}
+source(here::here("src/common_basis.R"))
+```
+
+```{r}
+cmw_delta_comment_ancestors_a <- tbl(con, sql("
+WITH RECURSIVE delta_comment_ancestors AS (
+    SELECT id, parent_comment_id AS ancestor_id, 1 AS height 
+    FROM cmw_delta_comments_a
+  UNION ALL
+    SELECT ca.id, c.parent_comment_id AS ancestor_id, height + 1 AS height
+    FROM delta_comment_ancestors ca, cmw_comments_a c
+    WHERE ca.ancestor_id = c.id AND c.parent_comment_id IS NOT NULL
+)
+SELECT * FROM delta_comment_ancestors")) %>%
+  compute_a(temporary=FALSE, overwrite=TRUE, name="cmw_delta_comment_ancestors_a", unique_indexes=list(c("id","ancestor_id"), c("ancestor_id","id")))
+```
+
+```{r}
+cmw_tree_depths <- cmw_delta_comment_ancestors_a  %>%
+  group_by(id) %>%
+  summarise(depth=max(height))
+```
+
+```{r}
+delta_comment_trees_to_prune <- cmw_delta_comment_ancestors_a %>%
+  inner_join(cmw_comments_a, join_by(ancestor_id==id)) %>% 
+  filter(score < 0 | str_detect(body,"^deleted  \\^\\^\\^\\^\\^\\^\\^\\^\\^\\^\\^\\^\\^\\^\\^\\^|^\\[removed\\]$|^\\[deleted\\]$")) %>%
+  distinct(id) %>%
+  union(cmw_tree_depths %>%
+        filter(depth==1) %>%
+        select(id)) %>%
+  compute_a(unique_indexes=list(c("id")))
+```
+
+```{r}
+data_driven_civil_discourse_subset_a <-cmw_delta_comment_ancestors_a %>% 
+  anti_join(delta_comment_trees_to_prune, join_by(id)) %>%
+  inner_join(cmw_tree_depths, join_by(id)) %>%
+  transmute(delta_comment_id=id,id=ancestor_id,height=depth-height) %>%
+  inner_join(cmw_comments_a, join_by(id)) %>%
+  select(-delta_comment_id) %>%
+  distinct() %>%
+  compute_a(temporary=FALSE, overwrite=TRUE, name="data_driven_civil_discourse_subset_a", unique_indexes=list(c("id")))
+
+data_driven_civil_discourse_subset_a %>% 
+  count()
+```
+
+```{r}
+data_driven_civil_discourse_subset_a %>%
+  mutate(length=str_length(body)) %>%
+  count(length) %>%
+  ggplot(aes(x=length,y=n)) +
+  geom_point(size=0.5) +
+  coord_cartesian(xlim=c(0,2500)) +
+  theme_hsci_discrete()
+```
+

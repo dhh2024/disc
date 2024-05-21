@@ -12,7 +12,6 @@ library(gghsci)
 
 con <- get_connection()
 
-register_tables(con,"disc_orig")
 register_tables(con,"disc")
 
 d <- c(read_yaml(here("secret.yaml"))$s3,read_yaml(here("params.yaml"))$s3)

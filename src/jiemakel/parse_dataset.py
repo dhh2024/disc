@@ -94,50 +94,50 @@ CREATE TABLE IF NOT EXISTS misc_a (
 def create_tables(cur: RecoveringCursor, table: str):
     cur.execute(f"""
 CREATE TABLE IF NOT EXISTS {table}_parse_a (
-    text_id BIGINT UNSIGNED NOT NULL,
-    sentence_id SMALLINT UNSIGNED NOT NULL,
-    word_pos SMALLINT UNSIGNED NOT NULL,
-    word_id INT UNSIGNED NOT NULL,
-    lemma_id INT UNSIGNED NOT NULL,
-    upos_id TINYINT UNSIGNED NOT NULL,
-    xpos_id TINYINT UNSIGNED NOT NULL,
-    feats_id SMALLINT UNSIGNED,
-    head_pos SMALLINT UNSIGNED NOT NULL,
-    deprel_id TINYINT UNSIGNED NOT NULL,
-    misc_id SMALLINT UNSIGNED,
-    start_char SMALLINT UNSIGNED NOT NULL,
-    end_char SMALLINT UNSIGNED NOT NULL,
+    text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+    sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+    word_pos SMALLINT UNSIGNED NOT NULL, -- word position in the sentence
+    word_id INT UNSIGNED NOT NULL, -- word_id that references words_a which contains the actual text of the word
+    lemma_id INT UNSIGNED NOT NULL, -- lemma_id that references lemmas_a which contains the actual text of the lemma
+    upos_id TINYINT UNSIGNED NOT NULL, -- upos_id that references upos_a which contains the actual upos
+    xpos_id TINYINT UNSIGNED NOT NULL, -- xpos_id that references upos_a which contains the actual xpos
+    feats_id SMALLINT UNSIGNED, -- feats_id that references feats_a which contains the actual feats
+    head_pos SMALLINT UNSIGNED NOT NULL, -- the word position of the head of the dependency relation
+    deprel_id TINYINT UNSIGNED NOT NULL, -- deprel_id that references deprel_a which contains the actual dependency relation
+    misc_id SMALLINT UNSIGNED, -- misc_id that references misc_a which contains the actual misc text associated with the word
+    start_char SMALLINT UNSIGNED NOT NULL, -- start character position of the word in the submission/comment
+    end_char SMALLINT UNSIGNED NOT NULL, -- end character position of the word in the submission/comment
     PRIMARY KEY (text_id, sentence_id, word_pos)
 ) ENGINE=ARIA CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TRANSACTIONAL=0 PAGE_CHECKSUM=0
 """)
 
     cur.execute(f"""
 CREATE TABLE IF NOT EXISTS {table}_parse_sentiments_a (
-    text_id BIGINT UNSIGNED NOT NULL,
-    sentence_id SMALLINT UNSIGNED NOT NULL,
-    sentiment TINYINT NOT NULL,
+    text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+    sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+    sentiment TINYINT NOT NULL, -- sentiment score of the sentence
     PRIMARY KEY (text_id, sentence_id)
 ) ENGINE=ARIA CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TRANSACTIONAL=0 PAGE_CHECKSUM=0
 """)
 
     cur.execute(f"""
 CREATE TABLE IF NOT EXISTS {table}_parse_constituents_a (
-    text_id BIGINT UNSIGNED NOT NULL,
-    sentence_id SMALLINT UNSIGNED NOT NULL,
-    node_id SMALLINT UNSIGNED NOT NULL,
-    label_id INT UNSIGNED NOT NULL,
-    parent_node_id SMALLINT UNSIGNED NOT NULL,
+    text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+    sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+    node_id SMALLINT UNSIGNED NOT NULL, -- node id of the constituent within the tree (root is 0)
+    label_id INT UNSIGNED NOT NULL, -- references words_a which contains the actual text of the label in the tree
+    parent_node_id SMALLINT UNSIGNED NOT NULL, -- parent node id of the constituent within the tree
     PRIMARY KEY (text_id, sentence_id, node_id)
 ) ENGINE=ARIA CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TRANSACTIONAL=0 PAGE_CHECKSUM=0
 """)
 
     cur.execute(f"""
 CREATE TABLE IF NOT EXISTS {table}_parse_entities_a (
-    name VARCHAR(255) NOT NULL,
-    text_id BIGINT UNSIGNED NOT NULL,
-    sentence_id SMALLINT UNSIGNED NOT NULL,
-    start_word_id INT UNSIGNED NOT NULL,
-    end_word_id INT UNSIGNED NOT NULL,
+    name VARCHAR(255) NOT NULL, -- the name of the entity
+    text_id BIGINT UNSIGNED NOT NULL, -- unique numeric id of the submission or comment parsed
+    sentence_id SMALLINT UNSIGNED NOT NULL, -- sentence number in the submission or comment
+    start_word_pos INT UNSIGNED NOT NULL, -- word position in the sentence where the entity mention starts
+    end_word_pos INT UNSIGNED NOT NULL, -- word position in the sentence where the entity mention ends
     PRIMARY KEY (name, text_id, sentence_id, start_word_id, end_word_id),
     INDEX (text_id, sentence_id)
 ) ENGINE=ARIA CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci TRANSACTIONAL=0 PAGE_CHECKSUM=0

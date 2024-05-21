@@ -11,7 +11,7 @@ from sqlalchemy.future import Engine, Connection
 import mariadb
 from mariadb.cursors import Cursor as MDBCursor
 from mariadb.connections import Connection as MDBConnection
-
+import pandas as pd
 import findspark
 import os
 from pyspark.sql import SparkSession
@@ -304,5 +304,24 @@ class LRUCache(Generic[K, V]):
                 self._items.pop(key)
 
 
+def list_datasets_in_s3() -> list[str]:
+    """List all datasets in the S3 bucket."""
+    return get_s3fs().ls('/dhh24/disc/parquet')
+
+
+def open_parquet_dataframe_in_s3(name: str) -> pd.DataFrame:
+    """Open a parquet file in the S3 bucket and return a pandas DataFrame."""
+    return pd.read_parquet(f"s3://dhh24/disc/parquet/{name}.parquet", engine='pyarrow')
+
+
+def copy_to_columnstore(con: Connection, table_prefix: str):
+    con.execute(text(f"DROP TABLE IF EXISTS {table_prefix}_b"))
+    con.execute(text(f"CREATE TABLE {table_prefix}_b ENGINE=ColumnStore DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci SELECT * FROM {table_prefix}_a WHERE 0"))
+    con.execute(text(f"INSERT INTO {table_prefix}_b SELECT * FROM {table_prefix}_a"))
+    con.execute(text(f"DROP TABLE IF EXISTS {table_prefix}_c"))
+    con.execute(text(f"RENAME TABLE {table_prefix}_b TO {table_prefix}_c"))
+
+
+
 __all__ = ["get_db_connection", "get_recovering_cursor", "RecoveringCursor", "get_params", "set_session_storage_engine", "get_s3fs",
-           "get_spark", "spark_jdbc_opts", "Submission", "Comment", "get_submission", "LRUCache"]
+           "get_spark", "spark_jdbc_opts", "Submission", "Comment", "get_submission", "LRUCache", "copy_to_columnstore",]

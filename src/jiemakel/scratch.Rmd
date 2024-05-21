@@ -17,50 +17,38 @@ source(here::here("src/common_basis.R"))
 # Counts of submissions and comments through time
 
 ```{r}
-cmw_submissions_c %>% 
-  mutate(year=year(created_utc)) %>% 
-  filter(year<2024L) %>%
-  count(year) %>%
-  mutate(subreddit="cmw") %>%
-  collect() %>%
-  union_all(
-    eli5_submissions_c %>% 
-      mutate(year=year(created_utc)) %>% 
-      filter(year<2024L) %>%
-      count(year) %>%
-      mutate(subreddit="eli5") %>%
-      collect()
-  ) %>%
-  ggplot(aes(x=year,y=n, color=subreddit)) +
+ls(pattern=("[^_]*_submissions_[a]")) %>% 
+  map(\(x)
+      get(x) %>% 
+        mutate(year=year(created_utc)) %>% 
+        count(year) %>% 
+        collect() %>% 
+        mutate(dataset=x)) %>% 
+  reduce(union_all) %>%
+  ggplot(aes(x=year,y=n, color=dataset)) +
   geom_line() +
   geom_point() +
   theme_hsci_discrete() +
-  scale_y_continuous(labels=scales::number, breaks=seq(0,500000, by=50000)) +
-  scale_x_continuous(breaks=2010:2023) +
+  scale_y_continuous(labels=scales::number, breaks=seq(0,1000000, by=50000)) +
+  scale_x_continuous(breaks=seq(2005,2024,by=2)) +
   ggtitle("Submissions by year")
 ```
 
 
 ```{r}
-cmw_comments_c %>% 
-  mutate(year=year(created_utc)) %>% 
-  filter(year<2024L) %>%
-  count(year) %>%
-  mutate(subreddit="cmw") %>%
-  collect() %>%
-  union_all(
-    eli5_comments_c %>% 
-      mutate(year=year(created_utc)) %>% 
-      filter(year<2024L) %>%
-      count(year) %>%
-      mutate(subreddit="eli5") %>%
-      collect()
-  ) %>%  
-  ggplot(aes(x=year,y=n, color=subreddit)) +
+ls(pattern=("[^_]*_comments_[a]")) %>% 
+  map(\(x)
+      get(x) %>% 
+        mutate(year=year(created_utc)) %>% 
+        count(year) %>% 
+        collect() %>% 
+        mutate(dataset=x)) %>% 
+  reduce(union_all) %>%
+  ggplot(aes(x=year,y=n, color=dataset)) +
   geom_line() +
   geom_point() +
   theme_hsci_discrete() +
-  scale_y_continuous(labels=scales::number, breaks=seq(0,5000000, by=500000)) +
+  scale_y_continuous(labels=scales::number, breaks=seq(0,50000000, by=2000000)) +
   scale_x_continuous(breaks=2010:2023) +
   ggtitle("Comments by year")
 ```
@@ -116,38 +104,73 @@ cmw_delta_comments_a %>%
 
 ```
 
-
-
 ```{r}
-delta_comment_depth <- tbl(con, sql("
-WITH RECURSIVE delta_comment_ancestors AS (
-    SELECT id, parent_id AS ancestor_id, 1 AS height 
-    FROM cmw_delta_comments_a
-  UNION ALL
-    SELECT ca.id, c.parent_id AS ancestor_id, height + 1 AS height
-    FROM delta_comment_ancestors ca, cmw_comments_a c
-    WHERE ca.ancestor_id = c.id
-),
-delta_comment_depth AS (
-  SELECT id, MAX(height) AS depth
-  FROM delta_comment_ancestors
-  GROUP BY id
-)
-SELECT * FROM delta_comment_depth
-"))
 delta_comment_depth %>%
-  inner_join(cmw_comments_a, join_by(id)) %>%
-  transmute(year=year(created_utc),depth) %>%
-  filter(year<2024L) %>%
-  ggplot(aes(x=year,group=year,y=depth)) +
-  geom_boxplot() +
+  count(depth) %>%
+  ggplot(aes(x=depth,y=n)) +
+  geom_col() +
   theme_hsci_discrete() +
   scale_y_continuous(labels=scales::number) +
-  scale_x_continuous(breaks=2013:2023) +
-  coord_cartesian(ylim=c(0,200)) +
-  xlab("Year") +
-  ylab("Depth of delta comment")
+  scale_x_continuous(breaks=1:190) +
+  coord_cartesian(xlim=c(0,15)) +
+  xlab("Depth of delta'd comment") +
+  ylab("N")
+```
 
+```{r}
+cmw_submissions_a %>% 
+  left_join(cmw_delta_comments_a %>% select(id=link_id) %>% count(id, name="deltas")) %>%
+  replace_na(list(deltas=0)) %>%
+  count(deltas) %>%
+  ggplot(aes(x=deltas,y=n)) +
+  geom_col() +
+  theme_hsci_discrete() +
+  scale_y_continuous(labels=scales::number) +
+  scale_x_continuous(breaks=0:190) +
+  coord_cartesian(xlim=c(0,15)) +
+  xlab("Number of deltas per submission") +
+  ylab("N submissions")
+```
+
+```{r}
+library(ggpointdensity)
+cmw_submissions_a %>% 
+  left_join(cmw_delta_comments_a %>% select(id=link_id) %>% count(id, name="deltas")) %>%
+  replace_na(list(deltas=0)) %>%
+  mutate(has_deltas=deltas>0) %>%
+  count(num_comments, has_deltas) %>%
+  group_by(num_comments) %>%
+  filter(n>=150) %>%
+  mutate(prop=n/sum(n)) %>%
+  ungroup() %>%
+  filter(has_deltas) %>%
+  ggplot(aes(x=num_comments,y=prop,weight=n)) +
+  geom_point() +
+  geom_smooth() +
+  scale_x_continuous(breaks=seq(0,8000,by=10)) +
+  theme_hsci_continuous() +
+  scale_y_continuous(labels=scales::percent) +
+  xlab("Number of comments under submission") +
+  ylab("Proportion of submissions having a delta")
+```
+
+```{r}
+cmw_delta_comments_c %>% 
+  group_by(link_id) %>% 
+  summarise(earliest_delta=min(created_utc),latest_delta=max(created_utc),.groups="drop") %>%
+  inner_join(cmw_comments_c, join_by(link_id)) %>%
+  mutate(time=case_when(
+    created_utc<earliest_delta ~ "before first",
+    created_utc>latest_delta ~ "after last",
+    T ~ "after first, before last")) %>%
+  count(link_id, time) %>%
+  ggplot(aes(x=time,group=time,y=n)) +
+  coord_cartesian(ylim=c(0,100)) +
+  scale_y_continuous(breaks=seq(0,100,by=10)) +
+  geom_boxplot(show.legend=F) +
+  theme_hsci_discrete() +
+  ylab("N comments") +
+  xlab("After / before delta given")
 ```
 
 
