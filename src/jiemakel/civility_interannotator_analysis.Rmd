@@ -1,0 +1,88 @@
+---
+title: "Civility interannotator analysis"
+date: "`r Sys.Date()`"
+output: 
+  html_notebook:
+    code_folding: hide
+    toc: yes
+  md_document:
+    variant: gfm 
+    toc: yes
+---
+
+```{r setup}
+source(here::here("src/common_basis.R"))
+library(irr)
+```
+
+```{r}
+civility_annotations_long <- read_csv(here("data/work/annotations/civility-marina.csv")) %>% 
+  mutate(annotator="Marina") %>%
+  union_all(
+    read_csv(here("data/work/annotations/civility-kart.csv")) %>% 
+    mutate(annotator="Kärt") 
+  ) %>%
+  union_all(
+    read_csv(here("data/work/annotations/civility-nan.csv")) %>% 
+    mutate(annotator="Nan") 
+  ) %>%
+  pivot_longer(c(ap,dd,fm,gt,im,is,jc,mc,md,pd),names_to="measure") %>%
+  mutate(value=as.integer(str_extract(value, "\\[\\{\"rating\":(\\d)\\}\\]", group=1)))
+
+civility_annotations_wide <- civility_annotations_long %>%
+  pivot_wider(values_from=value, names_from=annotator)
+
+```
+
+```{r}
+civility_annotations_long %>%
+  ggplot(aes(x=measure,y=value,color=annotator)) +
+  geom_jitter(size=0.5) +
+  theme_hsci_discrete() +
+  scale_y_continuous(breaks=0:10)
+```
+
+```{r}
+civility_annotations_long %>%
+  group_by(permalink,measure) %>%
+  summarise(sd=sd(value)) %>%
+  ggplot(aes(x=measure,y=sd)) +
+  geom_quasirandom() +
+  theme_hsci_discrete()
+```
+
+```{r}
+civility_annotations_long %>%
+  group_by(permalink,measure) %>%
+  filter(any(value!=1)) %>%
+  summarise(sd=sd(value)) %>%
+  ggplot(aes(x=measure,y=sd)) +
+  geom_quasirandom() +
+  theme_hsci_discrete()
+```
+```{r}
+civility_annotations_long %>%
+  group_by(permalink,measure) %>%
+  filter(any(value!=1)) %>%
+  summarise(sd=sd(value)) %>%
+  group_by(measure) %>%
+  summarise(mean_sd=mean(sd,na.rm=T)) %>%
+  ggplot(aes(x=measure,y=mean_sd)) +
+  geom_col() +
+  theme_hsci_discrete()
+```
+
+```{r}
+civility_annotations_long %>%
+  group_by(subreddit,measure) %>%
+  mutate(n=n()) %>%
+  ungroup() %>%
+  mutate(subreddit=if_else(n>5,subreddit,"other")) %>%
+  group_by(subreddit,measure) %>%
+  summarise(mv=mean(value,na.rm=T),.groups="drop") %>%
+  mutate(subreddit=fct_relevel(subreddit,"other", after=Inf)) %>%
+  ggplot(aes(x=measure,y=mv,fill=subreddit)) +
+  geom_col(position='dodge') +
+  theme_hsci_discrete() +
+  theme(legend.position="bottom")
+```
