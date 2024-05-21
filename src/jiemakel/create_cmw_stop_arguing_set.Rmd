@@ -72,10 +72,37 @@ cmw_stop_arguing_set_l <- cmw_stop_arguing_comment_ancestors_a %>%
     rename(id=descendant_id, stop_arguing_comment_id=id)
   ) %>%
   arrange(stop_arguing_comment_id,created_utc) %>%
+  mutate_all(as.character) %>%
   collect()
 ```
 
 ```{r}
 cmw_stop_arguing_set_l %>%
   write_tsv(here("data/work/cmw_stop_arguing_set.tsv"), quote="needed",na="")
+```
+
+```{r}
+cmw_stop_arguing_set_l <- cmw_stop_arguing_set_l %>%
+  filter(set=="stop arguing comment") %>%
+  left_join(cmw_stop_arguing_set_l %>% 
+              filter(set=="submission") %>%
+              select(stop_arguing_comment_id, op_text=body)
+  ) %>%
+  left_join(cmw_stop_arguing_set_l %>%
+              filter(set=="before") %>%
+              group_by(stop_arguing_comment_id) %>%
+              arrange(created_utc) %>%
+              summarise(before_text=str_flatten(str_c(author, ' @ ', created_utc, ' :\n\n', body), collapse="\n\n--------------------------------\n\n"))
+            ) %>%
+  left_join(cmw_stop_arguing_set_l %>%
+              filter(set=="after") %>%
+              group_by(stop_arguing_comment_id) %>%
+              arrange(created_utc) %>%
+              summarise(after_text=str_flatten(str_c(author, ' @ ', created_utc, ' :\n\n', body), collapse="\n\n--------------------------------\n\n"))
+            )
+```
+
+```{r}
+cmw_stop_arguing_set_l %>%
+  write_tsv(here("data/work/cmw_stop_arguing_set_with_context.tsv"), quote="needed",na="")
 ```
