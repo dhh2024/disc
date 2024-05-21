@@ -11,6 +11,7 @@ library(ggbeeswarm)
 library(gghsci)
 
 con <- get_connection()
+i64con <- get_connection(bigint="integer64")
 
 register_tables(con,"disc")
 
