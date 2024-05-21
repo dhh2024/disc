@@ -104,5 +104,6 @@ cmw_stop_arguing_set_l <- cmw_stop_arguing_set_l %>%
 
 ```{r}
 cmw_stop_arguing_set_l %>%
-  write_tsv(here("data/work/cmw_stop_arguing_set_with_context.tsv"), quote="needed",na="")
+  inner_join(intervention_annotations %>% filter(intervention=="Yes") %>% distinct(permalink)) %>%
+  write_tsv(here("data/work/cmw_stop_arguing_genuine_intervention_set_with_context.tsv"), quote="needed",na="")
 ```
