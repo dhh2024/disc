@@ -1,0 +1,64 @@
+---
+title: "Civility annotation set"
+date: "`r Sys.Date()`"
+output: 
+  html_notebook:
+    code_folding: hide
+    toc: yes
+  md_document:
+    variant: gfm 
+    toc: yes
+---
+
+```{r setup}
+source(here::here("src/common_basis.R"))
+library(irr)
+```
+
+```{r}
+intervention_annotations <- read_csv(here("data/work/annotations/interventions-samuli.csv")) %>% 
+  mutate(annotator="Samuli") %>%
+  union_all(
+    read_csv(here("data/work/annotations/interventions-ylva.csv")) %>% 
+    mutate(annotator="Ylva") 
+  )
+```
+
+```{r}
+intervention_annotations %>% 
+  filter(annotator=="Ylva") %>%
+  select(permalink,intervention) %>% 
+  inner_join(intervention_annotations %>% 
+               filter(annotator=="Samuli") %>%
+               select(permalink,intervention), join_by(permalink)) %>% 
+ select(intervention.x,intervention.y) %>%
+ as.matrix() %>% 
+ kappa2()
+```
+
+
+```{r}
+intervention_annotations %>% 
+  filter(annotator=="Ylva") %>%
+  select(permalink,intervention,body) %>% 
+  inner_join(intervention_annotations %>% 
+               filter(annotator=="Samuli") %>%
+               select(permalink,intervention), join_by(permalink)) %>% 
+  count(intervention.x,intervention.y) %>% 
+  ggplot(aes(x=intervention.x,y=intervention.y,fill=n,label=n)) + 
+  geom_tile() + 
+  xlab("Ylva") +
+  ylab("Samuli") +
+  theme_hsci_continuous() + 
+  geom_label(fill="white")
+```
+
+```{r}
+intervention_annotations %>% 
+  filter(annotator=="Ylva") %>%
+  select(permalink,intervention_ylva=intervention,body) %>% 
+  inner_join(intervention_annotations %>% 
+               filter(annotator=="Samuli") %>%
+               select(permalink,intervention_samuli=intervention), join_by(permalink)) %>%
+  filter(intervention_ylva!=intervention_samuli)
+```
