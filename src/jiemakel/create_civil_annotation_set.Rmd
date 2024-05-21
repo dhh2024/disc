@@ -160,7 +160,7 @@ ancestor_texts <- ancestors %>%
     inner_join(random_sample_comments_a, join_by(ancestor_id==id))) %>%
   select(id,author,created_utc,body) %>%
   group_by(id) %>%
-  summarise(ancestor_text=sql("GROUP_CONCAT(CONCAT_WS('', author, ' @ ', created_utc, ' :\\n\\n', body) ORDER BY created_utc  SEPARATOR '\n--------------------------------\n\n')"))
+  summarise(ancestor_text=sql("GROUP_CONCAT(CONCAT_WS('', author, ' @ ', created_utc, ' :\\n\\n', body) ORDER BY created_utc  SEPARATOR '\\n--------------------------------\\n\\n')"))
 ```
 
 ```{r}
