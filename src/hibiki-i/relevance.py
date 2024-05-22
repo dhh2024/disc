@@ -50,7 +50,9 @@ from hereutil import here, add_to_sys_path
 add_to_sys_path(here())
 import pandas as pd
 import numpy as np
-from scipy.spatial.distance import cosine
+
+def cosine(u, v):
+    return np.dot(u, v) / (np.linalg.norm(u) * np.linalg.norm(v))
 
 # load data
 ds = pd.read_csv(here('data/work/samples/cmw_submissions_sample_1.tsv'), sep='\t')
@@ -75,6 +77,7 @@ def compute_consistency(submission):
     return distances.mean()
 
 ds['consistency'] = ds.apply(compute_consistency, axis=1)
+ds[['id','consistency']].to_csv(here('data/work/samples/cmw_submissions_sample_1_consistency.tsv'), sep='\t', index=False)
 
 # compute relevance
 def compute_relevance(comment):
@@ -87,7 +90,7 @@ def compute_relevance(comment):
     return cosine(comment_vec, parent_vec)
 
 dfc['relevance'] = dfc.apply(compute_relevance, axis=1)
-
+dfc[['id', 'relevance']].to_csv(here('data/work/samples/cmw_comments_sample_1_relevance.tsv'), sep='\t', index=False)
 
 # %% ###################################################
 # plot results
@@ -173,5 +176,16 @@ for i, row in outliers.iterrows():
 plt.xlabel('Cosine similarity') 
 plt.legend(loc='upper right')
 plt.title('similarity distribution of outliers')
+plt.show()
+
+# plot distribution of relevance and consistency
+sns.kdeplot(dfc['relevance'], color='blue', alpha=0.5, fill=True)
+plt.xlabel('Relevance')
+plt.title('cosine similarity between comment and parent')
+plt.show()
+
+sns.kdeplot(dfs['consistency'], color='red', alpha=0.5, fill=True)
+plt.xlabel('Consistency')
+plt.title('consistency between submission and comments')
 plt.show()
 # %%
