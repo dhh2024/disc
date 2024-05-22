@@ -1,7 +1,7 @@
 # compare number comments with quotes in cmv comments and random comments
 # 
 
-expression = r">[A-Za-z\w]" # assuming that quotes can start anywhere but are followed by letters or a whitespace
+expression = r"\s*>.[\sA-Za-z\d\"\']+|\s*\&gt;"
 
 import pandas as pd
 
