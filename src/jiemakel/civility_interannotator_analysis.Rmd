@@ -16,6 +16,11 @@ library(irr)
 ```
 
 ```{r}
+annotation_set_l <- annotation_set %>% collect()
+```
+
+
+```{r}
 civility_annotations_long <- read_csv(here("data/work/annotations/civility-marina.csv")) %>% 
   mutate(annotator="Marina") %>%
   union_all(
@@ -27,7 +32,8 @@ civility_annotations_long <- read_csv(here("data/work/annotations/civility-marin
     mutate(annotator="Nan") 
   ) %>%
   pivot_longer(c(ap,dd,fm,gt,im,is,jc,mc,md,pd),names_to="measure") %>%
-  mutate(value=as.integer(str_extract(value, "\\[\\{\"rating\":(\\d)\\}\\]", group=1)))
+  mutate(value=as.integer(str_extract(value, "\\[\\{\"rating\":(\\d)\\}\\]", group=1))) %>%
+  left_join(annotation_set_l %>% select(permalink,set))
 
 civility_annotations_wide <- civility_annotations_long %>%
   pivot_wider(values_from=value, names_from=annotator)
@@ -86,3 +92,95 @@ civility_annotations_long %>%
   theme_hsci_discrete() +
   theme(legend.position="bottom")
 ```
+
+```{r}
+tibble(threshold=2:7) %>% 
+  cross_join(civility_annotations_long) %>% 
+  mutate(civil=value>=threshold) %>%
+  group_by(set,permalink,threshold,measure) %>%
+  summarise(civil=any(civil),.groups="drop") %>%
+  count(threshold,set,measure,civil) %>%
+  group_by(threshold,set,measure) %>%
+  mutate(prop=n/sum(n)) %>%
+  filter(civil) %>%
+  ggplot(aes(x=measure,y=prop,fill=set)) +
+  facet_wrap(~threshold) +
+  geom_col(position='dodge') +
+  theme_hsci_discrete() +
+  theme(legend.position="bottom")
+```
+
+```{r}
+civility_annotations_long %>% 
+  mutate(civil=value>=4) %>%
+  group_by(set,permalink,measure) %>%
+  summarise(civil=any(civil),.groups="drop") %>%
+  count(set,measure,civil) %>%
+  group_by(set,measure) %>%
+  mutate(prop=n/sum(n)) %>%
+  ungroup() %>%
+  filter(civil) %>%
+  ggplot(aes(x=measure,y=prop,fill=set)) +
+  geom_col(position='dodge') +
+  theme_hsci_discrete() +
+  theme(legend.position="bottom")
+```
+
+```{r}
+civility_annotations_long %>% 
+  filter(!measure %in% c("dd","is")) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,permalink,measure) %>%
+  summarise(civil=any(civil),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil)>=2,.groups="drop") %>%
+  count(set,civil) %>%
+  group_by(set) %>%
+  mutate(prop=n/sum(n)) %>%
+  filter(civil) %>%
+  ggplot(aes(x=set,y=prop)) + 
+  geom_col() +
+  coord_flip() +
+  theme_hsci_discrete()
+```
+
+```{r}
+civility_annotations_long %>% 
+  mutate(negative=measure %in% c("dd","is")) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,negative,permalink,measure) %>%
+  summarise(civil=any(civil),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil&!negative)-sum(civil&negative)>=1,.groups="drop") %>%
+  count(set,civil) %>%
+  group_by(set) %>%
+  mutate(prop=n/sum(n)) %>%
+  filter(civil) %>%
+  ggplot(aes(x=set,y=prop)) + 
+  geom_col() +
+  coord_flip() +
+  theme_hsci_discrete()
+```
+
+```{r}
+civility_annotations_long %>% 
+  filter(!measure %in% c("dd","is")) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,permalink,measure) %>%
+  summarise(civil=any(civil),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil)>=2,.groups="drop") %>%
+  filter(civil,set!="data_driven_civil_discourse_subset")
+```
+
+```{r}
+civility_annotations_long %>% 
+  mutate(negative=measure %in% c("dd","is")) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,negative,permalink,measure) %>%
+  summarise(civil=any(civil),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil&!negative,na.rm=T)-sum(civil&negative,na.rm=T)>=1,.groups="drop") %>%
+  filter(civil)
+```
+
