@@ -41,18 +41,16 @@ dd_sample['contains_links'] = dd_links
 random_links = random_sample['body'].str.contains("(http", regex=False)
 random_sample['contains_links'] = random_links
 
+# %%
+# paragraphs
+dd_parag = dd_sample['body'].str.contains("\n", regex=False)
+dd_sample['contains_paragraphs'] = dd_parag
+
+random_parag = random_sample['body'].str.contains("\n", regex=False)
+random_sample['contains_paragraphs'] = random_parag
+
+#%%
+# save the features 
 dd_sample.to_csv(here("data/work/samples/data_driven_4000_sample.tsv"), sep='\t')
 random_sample.to_csv(here("data/work/samples/random_4000_sample.tsv"), sep='\t')
 
-#%%
-if __name__ == "__main__":
-    #draw_histogram(
-    #dd_sample_lens, random_sample_lens,
-    #'Civil sample',
-    #'Random sample',
-    #'Comment lengths',
-    #'n of words',
-    #list(range(0,1875,250)),
-    #'skyblue')
-    pass
-# %%
