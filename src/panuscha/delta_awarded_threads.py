@@ -48,8 +48,8 @@ for _, row in df_comments[(df_comments['parent_comment_id'].isna()) ].iterrows()
         discussion_all[row['id']] = after_delta_thread(row['id'])   
         discussion_all_lengths[row['id']] = len(discussion_all[row['id']])
 
-discussion_negative_delta = {k: discussion_all[k] for k in discussion_all.keys() if k not in discussion_delta.keys()}   
-discussion_negative_delta_lengths = {k: len(discussion_all[k]) for k in discussion_all.keys() if k not in discussion_delta.keys()} 
+discussion_non_delta = {k: discussion_all[k] for k in discussion_all.keys() if k not in discussion_delta.keys()}   
+discussion_non_delta_lengths = {k: len(discussion_all[k]) for k in discussion_all.keys() if k not in discussion_delta.keys()} 
 
     # %%
 
@@ -84,12 +84,9 @@ print(statistics.mean(discussion_all_lengths.values()))
 #x = list(filter(lambda x: x>1 and x<50, discussion_delta_lengths.values()))
 x = list(discussion_delta_lengths.values())
 #y = list(filter(lambda x: x>1 and x<50, discussion_negative_delta_lengths.values()))
-y = list(discussion_negative_delta_lengths.values())
+y = list(discussion_non_delta_lengths.values())
 #plt.hist([x, y], bins = 200, density = True, label=['Delta awarded threads', 'Non delta awarded threads'],  alpha = 0.5, range = [0, 50], width = 0.3)
 plt.hist([x, y], bins=200, density=True, label=['Delta awarded threads', 'Non delta awarded threads'], alpha=0.5, range=[0, 50], width=0.3)
-
-
-
 
 
 
@@ -99,7 +96,7 @@ import matplotlib.pyplot as plt
 
 # Extract values
 x = list(discussion_delta_lengths.values())
-y = list(discussion_negative_delta_lengths.values())
+y = list(discussion_non_delta_lengths.values())
 
 range = [0, 100]
 bins = 100
@@ -134,10 +131,61 @@ plt.legend()
 # Display the plot
 plt.show()
 
+# %%
+delta_awarded_list = [v for v in discussion_delta.values()]
+delta_awarded_list = [x for xs in delta_awarded_list for x in xs]
+non_delta_awarded_list = [v for v in discussion_delta.values()]
 
+df_comments['delta_thread'] = False
+df_comments.loc[df_comments['id'].isin(delta_awarded_list), 'delta_thread'] = True
+
+
+# %%
+df_comments['delta_thread'].value_counts()
+
+# %%
+
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import classification_report, accuracy_score
+
+df_comments_without_nan = df_comments.dropna()
+
+# Use TF-IDF vectorizer
+vectorizer = TfidfVectorizer()
+X = vectorizer.fit_transform(df_comments_without_nan['body'])
+y = df_comments_without_nan['delta_thread']
+
+# Split data into training and test sets
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train the Random Forest classifier
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+clf.fit(X_train, y_train)
+
+# Make predictions
+y_pred = clf.predict(X_test)
+
+# Evaluate the classifier
+print(classification_report(y_test, y_pred))
+print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
+
+# Extract feature importances
+feature_importances = clf.feature_importances_
+
+# Get feature names
+feature_names = vectorizer.get_feature_names_out()
+
+# Create a DataFrame for better visualization
+feature_importances_df = pd.DataFrame({
+    'feature': feature_names,
+    'importance': feature_importances
+})
 
 
 
 # %%
+df_comments_without_nan['body']
 
-
+# %%

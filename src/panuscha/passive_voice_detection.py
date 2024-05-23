@@ -4,8 +4,6 @@
 import spacy
 from spacy.matcher import Matcher
 import pandas as pd
-!python3 -m spacy download en_core_web_trf
-!pip install spacy-transformers
 import spacy_transformers
 
 

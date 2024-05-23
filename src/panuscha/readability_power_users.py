@@ -3,7 +3,6 @@ import pandas as pd
 import math
 from datetime import datetime
 import matplotlib.pyplot as plt
-from readability import Readability
 import nltk
 nltk.download('punkt')
 
@@ -12,7 +11,7 @@ data_path = "../../data/work/samples/"
 cmw_comments_sample_path = data_path + "cmw_comments_sample_1_delta_annotation.tsv"
 cmw_submissions_sample_path = data_path + "cmw_submissions_sample_1.tsv"
 cwm_delta_thread_sample = data_path + "cmw_comments_sample_1_deltas_thread.tsv"
-power_users_comments_path = data_path + 'power_user_cmv_comments.tsv'
+power_users_comments_path = data_path + 'power_user_cmv_comments.tsv' #'random_sample_comments_sample_1.tsv'
 
 # %% load power_users
 power_users = pd.read_csv(power_users_comments_path , sep='\t')
