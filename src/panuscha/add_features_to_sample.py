@@ -42,8 +42,9 @@ df_data_driven_sample['readability_score'] = df_data_driven_sample['body'].apply
 #df_random_sample = df_random_sample[df_random_sample['readability_score'].notna()]
 
 # %%
-df_data_driven_sample.head()
+
 df_data_driven_sample.to_csv('../../data/work/samples/data_driven_4000_sample.tsv', sep='\t')
+df_data_driven_sample.head()
 
 # %%
 %load_ext autoreload
@@ -97,7 +98,7 @@ df_data_driven_sample['comments_after_thread'] = df_data_driven_sample['id'].app
 # %%
 df_data_driven_sample.head()
 # %%
-df_data_driven_sample = df_data_driven_sample.drop(columns=['Unnamed: 0'])
+df_data_driven_sample = df_data_driven_sample.drop(columns=['Unnamed: 0', 'Unnamed: 0.1'])
 
 # %%
 df_data_driven_sample.head()
