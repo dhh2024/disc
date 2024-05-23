@@ -31,15 +31,19 @@ df_comments['parent_comment_id'].apply(lambda x: int(x) if math.isnan(x) == Fals
 # %% compute how much time it took to reply to the comment
 df_comments.created_utc
 time_taken_to_reply = []
+time_taken_to_reply_minutes = []
 for _,row in df_comments.iterrows():
     print(row['id'])
     try:
         comment_time = datetime.strptime(str(row['created_utc']), '%Y-%m-%d %H:%M:%S')
         submission_time = datetime.strptime(df_submissions[df_submissions['id'] == row.link_id]['created_utc'].squeeze(), '%Y-%m-%d %H:%M:%S')
         time_taken_to_reply.append((comment_time - submission_time))
+        time_taken_to_reply_minutes.append((comment_time - submission_time).total_seconds()/60)
     except: 
-        time_taken_to_reply.append(None)    
+        time_taken_to_reply.append(None)  
+        time_taken_to_reply_minutes.append(None)    
 df_comments['time_taken_to_reply'] = time_taken_to_reply
+df_comments['time_taken_to_reply_minutes'] = time_taken_to_reply_minutes
 
 # %% plot time taken to reply
 # Calculate time intervals (in seconds) for replies
@@ -59,14 +63,18 @@ df_comments[df_comments['delta'] == True]['time_taken_to_reply']
 
 
 # %%
-df_comments['time_taken_to_reply'].hist(bins = 100, cumulative = True)
+ax1 = df_comments[df_comments['time_taken_to_reply_minutes']< 1400]['time_taken_to_reply_minutes'].hist(bins = 100)
+ax1.set_title('Interval between OP submission and delta awarded comment post')
 
 
 # %%
-df_comments[df_comments['delta'] == True]['time_taken_to_reply'].hist(bins = 100, cumulative = True)
+import statistics
+ax2 = df_comments[(df_comments['delta'] == True) & (df_comments['time_taken_to_reply_minutes']< 1400)]['time_taken_to_reply_minutes'].hist(bins = 200)
+ax2.set_title('Time interval between OP submission and delta awarded comment post one day ')
+ax2.set_xlabel('Minutes')
+ax2.set_ylabel('Number of comments')
 
 # %% Find how many comments there were before delta awarded comment
-
 id_posts_delta_comments =  df_comments[df_comments['delta'] == True]['link_id']
 df_submissions[(df_submissions['id'] == row.link_id)] #& (df_submissions['time_taken_to_reply'] )
 df_comments.groupby
@@ -75,4 +83,35 @@ df_comments[df_comments['created_utc'] < df_comments[df_comments['delta'] == Tru
 # %%
 df_comments.to_csv('../../data/work/samples/cmw_comments_sample_1_delta_annotation.tsv', sep='\t')
 
+# %%
+# How many comments were there posted before the delta awarded
+def how_many_comments_before_delta(link_id, delta_interval):
+    #print(df_comments[(df_comments['time_taken_to_reply_minutes'] < delta_interval) & (df_comments['link_id'] == link_id) ])
+    #print(df_comments[(df_comments['link_id'] == link_id) ])
+    return len(df_comments[(df_comments['time_taken_to_reply_minutes'] < delta_interval) & (df_comments['link_id'] == link_id) ])
+
+
+comments_before_delta = []
+for _, row in df_comments[df_comments['delta'] == True].iterrows():
+    comments_before_delta.append(how_many_comments_before_delta(row['link_id'], row['time_taken_to_reply_minutes']))
+
+# %%
+comments_before_delta
+# %%
+df_comments['comments_before_delta'] = None
+df_comments.loc[df_comments['delta'] == True, 'comments_before_delta'] =  comments_before_delta
+
+
+# %%
+df_comments[df_comments['delta'] == True]['comments_before_delta']
+
+# %%
+less_then = list(filter(lambda x: x < 200, comments_before_delta))
+plt.hist( less_then, bins=100, edgecolor='black')
+plt.title('Comments before delta awarded comment')
+plt.xlabel('Number of comments before delta was awarded')
+
+
+# %%
+min(comments_before_delta)
 # %%
