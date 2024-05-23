@@ -217,7 +217,8 @@ def comments_with_quotes():
         index=['% of power user comments', '% of non-power user comments'],
         columns=['CMV','AITA','ELI5','unpopular opinion']        
     )
-    print(df.transpose())
+    df = df.transpose()
+    print(df)
     df
 
 

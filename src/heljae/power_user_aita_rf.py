@@ -17,14 +17,14 @@ DATA_DIR = here("data")
 
 #%%
 
-power_user_delta_comments = pd.read_parquet('dhh24/disc/parquet/power_user_cmv_all_comments.parquet', filesystem=get_s3fs(),engine="pyarrow")
-power_users = power_user_delta_comments['author'].unique()
-delta_comments_subsample = power_user_delta_comments[~power_user_delta_comments['body'].str.contains(r"\[removed\]|deleted", na=True)] # if body is NaN it doesn't exist, so it's 'the same' as deleted
-delta_comments_subsample = delta_comments_subsample.sample(4000).copy()
-delta_comments_subsample["power_user"] = 1
+power_user_aita_comments = pd.read_parquet('dhh24/disc/parquet/power_user_aita_comments.parquet', filesystem=get_s3fs(),engine="pyarrow")
+power_users = power_user_aita_comments['author'].unique()
+power_user_aita_comments = power_user_aita_comments[~power_user_aita_comments['body'].str.contains(r"\[removed\]|deleted", na=True)] # if body is NaN it doesn't exist, so it's 'the same' as deleted
+pu_aita_subsample = power_user_aita_comments.sample(4000).copy()
+pu_aita_subsample["power_user"] = 1
 
 #%%
-random_sample_comments = pd.read_csv(here("data/work/samples/cmw_comments_sample_1.tsv"), sep="\t")
+random_sample_comments = pd.read_csv(here("data/work/samples/aita_comments_sample_1.tsv"), sep="\t")
 random_sample_comments = random_sample_comments[~random_sample_comments['body'].str.contains(r"\[removed\]|deleted", na=True)]
 random_sample_comments = random_sample_comments[~random_sample_comments['author'].isin(power_users)]
 random_sample_comments = random_sample_comments.sample(4000).copy()
@@ -32,7 +32,7 @@ random_sample_comments["power_user"] = 0
 
 #%%
 
-data_to_classify = pd.concat([delta_comments_subsample, random_sample_comments])
+data_to_classify = pd.concat([pu_aita_subsample, random_sample_comments])
 
 #%%
 
@@ -83,4 +83,4 @@ for class_label, importances in importances_by_class.items():
         print(f"{feature_name}: {importance}")
 
 # report classification score on the oob set
-print(f"oob score: {rf_binary.oob_score_}")
+print(f"oob score:\n {rf_binary.oob_score_}")
