@@ -12,7 +12,9 @@ passivepy = PassivePy.PassivePyAnalyzer(spacy_model = "en_core_web_lg")
 
 # %% paths
 data_path = "../../data/work/samples/"
-data_driven_4000_sample_path = data_path + 'data_driven_4000_sample.tsv' #'random_sample_comments_sample_1.tsv'
+
+sample = 'random_4000_sample.tsv'
+data_driven_4000_sample_path = data_path + sample #'random_sample_comments_sample_1.tsv'
 
 # %% load power_users
 df_data_driven_sample = pd.read_csv(data_driven_4000_sample_path , sep='\t')
@@ -42,9 +44,11 @@ df_data_driven_sample['readability_score'] = df_data_driven_sample['body'].apply
 #df_random_sample = df_random_sample[df_random_sample['readability_score'].notna()]
 
 # %%
-
-df_data_driven_sample.to_csv('../../data/work/samples/data_driven_4000_sample.tsv', sep='\t')
 df_data_driven_sample.head()
+
+# %%
+
+df_data_driven_sample.to_csv('../../data/work/samples/{}'.format(sample), sep='\t')
 
 # %%
 %load_ext autoreload
@@ -78,7 +82,7 @@ replies = df_data_driven_sample['parent_comment_id'].apply(lambda x: int(find_nu
 df_data_driven_sample['number_of_replies_before_comment'] = replies
 
 # %%
-df_data_driven_sample.to_csv('../../data/work/samples/data_driven_4000_sample.tsv', sep='\t')
+df_data_driven_sample.to_csv('../../data/work/samples/{}'.format(sample), sep='\t')
 
 
 # %%
@@ -107,6 +111,6 @@ df_data_driven_sample.head()
 df_data_driven_sample.columns
 
 # %%
-df_data_driven_sample.to_csv('../../data/work/samples/data_driven_4000_sample.tsv', sep='\t')
+df_data_driven_sample.to_csv('../../data/work/samples/{}'.format(sample), sep='\t')
 
 # %%
