@@ -1,0 +1,23 @@
+#Unique Words in Each Community
+
+data(stop_words)
+
+cmv_tf_idf = nodes_table_reddit %>%
+  left_join(reddit_data, by = c('name' = 'comment_id')) %>%
+  select(name, community, group, author, author_id, title, comments) %>%
+  unnest_tokens(word, comments) %>%
+  count(group, word) %>%
+  bind_tf_idf(word, group, n) %>%
+  arrange(desc(tf_idf))
+
+cmv_tf_idf
+
+cmv_unique_words = cmv_tf_idf %>% 
+  anti_join(stop_words, by = "word") %>%
+  group_by(group) %>%
+  slice_max(order_by = tf_idf, n = 20) %>%
+  as_tibble()
+
+cmv_unique_words
+
+write.table(cmv_unique_words, "/Users/AminoMewza/OneDrive - University of Helsinki/DHH24/annotation/cmv_unique_words.txt", sep = "\t", row.names = FALSE, quote = FALSE)
