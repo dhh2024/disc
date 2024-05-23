@@ -1,0 +1,162 @@
+# Load necessary libraries
+library(tidygraph)
+library(tidyverse)
+library(ggraph)
+library(ggplot2)
+library(igraph)
+library(readxl)
+
+# Path to the Excel file containing Reddit data
+file_path <- "/Users/AminoMewza/OneDrive - University of Helsinki/DHH24/annotation/cmw_comments_sample_1.xlsx"
+
+# Load data from the Excel file
+reddit_data <- read_excel(file_path)
+
+# Convert columns to appropriate data types
+reddit_data <- reddit_data %>%
+  mutate(
+    subreddit_id = as.character(subreddit_id),
+    parent_comment_id = as.character(parent_comment_id),
+    comment_id = as.character(comment_id),
+    created_utc = as.character(created_utc),
+    author_id = as.character(author_id),
+    score = as.integer(score),
+    controversiality = as.integer(controversiality)
+  )
+
+# Create edge list: edges from parent comment to reply comment
+edge_list_reddit <- reddit_data %>%
+  filter(!is.na(parent_comment_id)) %>%
+  group_by(parent_comment_id, comment_id) %>%
+  tally(name = 'weight') %>%
+  arrange(desc(weight))
+
+# Create the graph object from the edge list
+g_reddit <- edge_list_reddit %>%
+  as_tbl_graph(directed = TRUE)
+
+# Calculate global statistics for the network
+d = g_reddit %>% igraph::graph.density()
+c = g_reddit %>% transitivity(type = 'global')
+p = g_reddit %>% igraph::average.path.length()
+
+global_stats = tibble(Global_Metrics = c('Density', 'Global Clustering', 'Average Path Length'), ChangeMyView = c(d, c, p))
+
+# Calculate node centrality measures
+nodes_table_reddit = g_reddit %>%
+  mutate(degree = centrality_degree(mode = 'all')) %>%
+  mutate(between = centrality_betweenness(directed = FALSE)) %>%
+  mutate(eigen = centrality_eigen(weights = NULL, directed = FALSE)) %>%
+  as_tibble() %>%
+  arrange(desc(degree))
+
+# Convert to undirected graph and detect communities using Louvain algorithm
+g_reddit <- g_reddit %>%
+  to_undirected() %>%
+  mutate(community = group_louvain())
+
+# Calculate centrality and join with original data
+centrality_cmv <- g_reddit %>% mutate(degree = centrality_degree(mode = 'all')) %>%
+  as_tibble() %>%
+  arrange(desc(degree)) %>%
+  left_join(reddit_data, by = c('name' = 'comment_id'))
+
+# Plot histogram of degree centrality
+nodes_table_reddit %>%
+  ggplot() +
+  geom_histogram(aes(x = degree), binwidth = 0.7) +
+  labs(x = 'Degree Centrality of r/ChangeMyView Network', y = 'Number of nodes')
+
+# Calculate and plot betweenness centrality
+g_reddit %>%
+  mutate(between = centrality_betweenness(weights = weight, directed = FALSE)) %>%
+  as_tibble() %>%
+  arrange(desc(between))
+
+nodes_table_reddit %>%
+  ggplot() +
+  geom_histogram(aes(x = between), binwidth = 3000) +
+  labs(x = 'Betweenness Centrality of r/ChangeMyView Network', y = 'Number of nodes')
+
+# Calculate and plot eigenvector centrality
+g_reddit %>%
+  mutate(eigen = centrality_eigen(weights = weight, directed = FALSE)) %>%
+  as_tibble() %>%
+  arrange(desc(eigen))
+
+nodes_table_reddit %>%
+  ggplot() +
+  geom_histogram(aes(x = eigen), binwidth = 0.05) +
+  labs(x = 'Eigenvector Centrality of r/ChangeMyView Network', y = 'Number of nodes')
+
+# Calculate and plot correlation between degree and betweenness centrality
+correlation <- cor(nodes_table_reddit$degree, nodes_table_reddit$between)
+
+nodes_table_reddit %>%
+  ggplot() +
+  geom_point(aes(x = degree, y = between)) +
+  geom_smooth(aes(x = degree, y = between), method = 'lm') +
+  labs(x = 'Degree Centrality of r/ChangeMyView Network', y = 'Betweenness Centrality of r/ChangeMyView Network')
+
+# Load user data
+all_users_reddit = read_csv("/Users/AminoMewza/OneDrive - University of Helsinki/DHH24/annotation/author_id.csv")
+
+all_users_reddit <- all_users_reddit %>%
+  mutate(comment_id = as.character(comment_id))
+
+table_of_comments = reddit_data %>%
+  select(comment_id, comments)
+
+# Visualization of the network with degree centrality > 4
+g_reddit %>%
+  mutate(degree = centrality_degree(mode = 'all')) %>%
+  left_join(all_users_reddit, by = c('name' = 'comment_id')) %>%
+  filter(degree > 4) %>%
+  ggraph(layout = 'fr') +
+  geom_edge_link(alpha = 0.3) +
+  geom_node_point(aes(size = degree), alpha = 0.3) +
+  labs(title = "Network of Comments and Replies in r/ChangeMyView") +
+  geom_node_text(aes(label = ifelse(degree > 10, author, NA)), size = 2.5, repel = TRUE) +
+  theme(legend.position = 'none')
+
+# Plot number of nodes in the detected communities
+g_reddit %>% to_undirected() %>%
+  mutate(group = group_louvain()) %>%
+  as_tibble() %>%
+  group_by(group) %>%
+  tally() %>%
+  ggplot() +
+  geom_col(aes(x = group, y = n)) +
+  labs(x = 'Number of Nodes in the Communities of r/ChangeMyView Network', y = 'Degrees')
+
+# Set seed for reproducibility and create the final network plot
+set.seed(052024)
+g_reddit %>%
+  to_undirected() %>%
+  mutate(
+    community = group_louvain(weights = NULL),
+    degree = centrality_degree(mode = 'all')
+  ) %>%
+  left_join(all_users_reddit, by = c('name' = 'comment_id')) %>%
+  filter(community %in% 1:20) %>% 
+  ggraph('fr')  +
+  geom_edge_link(alpha = 0.2) +
+  geom_node_point(aes(color = as.character(community))) +
+  labs(title = "Communities in r/ChangeMyView Comments and Replies", color = "Community") +
+  geom_node_text(aes(label = ifelse(degree > 10, author, NA)), size = 2, repel = TRUE) +
+  #geom_node_text(size = 2, aes(label = author), repel = TRUE) +
+  #geom_node_text(
+  #  aes(label = ifelse(degree < 2 | degree > 5, author, NA)),
+  #  size = 2,
+  #  repel = TRUE
+  #) +
+  theme_minimal() +
+  theme(
+    legend.position = 'right',
+    plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),  # Center and style the title
+    axis.title = element_blank(),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank()
+  )
+
