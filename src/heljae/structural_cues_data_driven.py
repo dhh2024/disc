@@ -13,6 +13,7 @@ random_sample = pd.read_csv(here("data/work/samples/random_4000_sample.tsv"), se
 
 human_eli5_sample = pd.read_parquet(here("data/work/human-annotated-collected-eli5.parquet"))
 human_random_sample = pd.read_parquet(here("data/work/human-annotated-collected-random.parquet"))
+human_uo_sample = pd.read_parquet(here("data/work/human-annotated-collected-unpopular.parquet"))
 
 # %%
 
@@ -29,6 +30,9 @@ human_eli5_sample['comment_length'] = h_eli5_lens
 
 h_rand_lens = human_random_sample['body'].map(lambda x: len(str(x).split())) 
 human_random_sample['comment_length'] = h_rand_lens
+
+h_uo_lens = human_uo_sample['body'].map(lambda x: len(str(x).split())) 
+human_uo_sample['comment_length'] = h_uo_lens
 
 
 # comments with quotes
@@ -49,6 +53,8 @@ human_eli5_sample['n_of_quotes'] = h_eli5_quotes
 h_rand_quotes = human_random_sample['body'].apply(lambda x: len(re.findall(p,x)))
 human_random_sample['n_of_quotes'] = h_rand_quotes
 
+h_uo_quotes = human_uo_sample['body'].apply(lambda x: len(re.findall(p,x)))
+human_uo_sample['n_of_quotes'] = h_uo_quotes
 # contains links
 
 #%%
@@ -64,6 +70,9 @@ human_eli5_sample['contains_links'] = h_eli5_links
 h_rand_links = human_random_sample['body'].str.contains("(http", regex=False)
 human_random_sample['contains_links'] = h_rand_links
 
+h_uo_links = human_uo_sample['body'].str.contains("(http", regex=False)
+human_uo_sample['contains_links'] = h_uo_links
+
 # %%
 # paragraphs
 #dd_parag = dd_sample['body'].str.contains("\n", regex=False)
@@ -78,6 +87,8 @@ human_eli5_sample['contains_paragraphs'] = h_eli5_parag
 h_rand_parag = human_random_sample['body'].str.contains("\n", regex=False)
 human_random_sample['contains_paragraps'] = h_rand_parag
 
+h_uo_parag = human_uo_sample['body'].str.contains("\n", regex=False)
+human_uo_sample['contains_paragraphs'] = h_uo_parag
 
 #%%
 # save the features 
@@ -86,4 +97,5 @@ random_sample.to_csv(here("data/work/samples/random_4000_sample.tsv"), sep='\t')
 
 human_eli5_sample.to_csv(here("data/work/human-annotated-collected-eli5.tsv"), sep='\t')
 human_random_sample.to_csv(here("data/work/human-annotated-collected-random.tsv"), sep='\t')
+human_uo_sample.to_csv(here("data/work/human-annotated-collected-unpopular.tsv"), sep='\t')
 
