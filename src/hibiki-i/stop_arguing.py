@@ -156,11 +156,13 @@ dfs.dropna()
 dfc.dropna()
 
 # consistency
-sns.kdeplot(dfs['consistency'], color='red', alpha=0.5, fill=True, label='interventions')
-sns.kdeplot(dfs_rnd['consistency'], color='blue', alpha=0.5, fill=True, label='random')
-plt.xlabel('Consistency')
-plt.title('threads with genuine interventions vs random threads')
-plt.legend()
+plt.figure(figsize=(10, 6))
+sns.kdeplot(dfs['consistency'], color=sns.color_palette("deep")[0], alpha=0.5, fill=True, label='threads with\ninterventions')
+sns.kdeplot(dfs_rnd['consistency'], color=sns.color_palette("deep")[1], alpha=0.5, fill=True, label='random threads')
+plt.xlabel('Avg. BERT similarity between a post and its comments', fontsize=19)
+plt.ylabel('')
+plt.yticks([])
+plt.legend(prop={'size': 19})
 plt.show()
 
 # relevance

@@ -6,40 +6,40 @@
 # encode text and save vectors
 ########################################################
 
-# from hereutil import here, add_to_sys_path
-# add_to_sys_path(here())
-# import pandas as pd
-# import numpy as np
-# from sentence_transformers import SentenceTransformer
+from hereutil import here, add_to_sys_path
+add_to_sys_path(here())
+import pandas as pd
+import numpy as np
+from sentence_transformers import SentenceTransformer
 
-# model = SentenceTransformer('multi-qa-distilbert-cos-v1')
+model = SentenceTransformer('multi-qa-distilbert-cos-v1')
 
-# dfs = pd.read_csv(here('data/work/samples/cmw_submissions_sample_1.tsv'), sep='\t')
-# dfs['body'] = dfs['title'] + ' ' + dfs['selftext']
-# print('submissions loaded')
-# dfs['embeddings'] = dfs['body'].apply(lambda text: model.encode(text))
-# print('submissions encoded')
-# dfs.to_csv(here('data/work/samples/cmw_submissions_sample_1_embeddings.tsv'), sep='\t', index=False)
-# print('submissions saved')
+dfs = pd.read_csv(here('data/work/samples/cmw_submissions_sample_1.tsv'), sep='\t')
+dfs['body'] = dfs['title'] + ' ' + dfs['selftext']
+print('submissions loaded')
+dfs['embeddings'] = dfs['body'].apply(lambda text: model.encode(text))
+print('submissions encoded')
+dfs.to_csv(here('data/work/samples/cmw_submissions_sample_1_embeddings.tsv'), sep='\t', index=False)
+print('submissions saved')
 
-# dfc = pd.read_csv(here('data/work/samples/cmw_comments_sample_1.tsv'), sep='\t')
-# print('comments loaded')
-# dfc['embeddings'] = dfc['body'].apply(lambda text: model.encode(str(text)))
-# print('comments encoded')
-# dfc.to_csv(here('data/work/samples/cmw_comments_sample_1_embeddings.tsv'), sep='\t', index=False)
-# print('comments saved')
+dfc = pd.read_csv(here('data/work/samples/cmw_comments_sample_1.tsv'), sep='\t')
+print('comments loaded')
+dfc['embeddings'] = dfc['body'].apply(lambda text: model.encode(str(text)))
+print('comments encoded')
+dfc.to_csv(here('data/work/samples/cmw_comments_sample_1_embeddings.tsv'), sep='\t', index=False)
+print('comments saved')
 
-# sub_vecs = dfs['embeddings']
-# com_vecs = dfc['embeddings']
+sub_vecs = dfs['embeddings']
+com_vecs = dfc['embeddings']
 
-# sub_vecs = pd.DataFrame(sub_vecs.to_list())
-# com_vecs = pd.DataFrame(com_vecs.to_list())
+sub_vecs = pd.DataFrame(sub_vecs.to_list())
+com_vecs = pd.DataFrame(com_vecs.to_list())
 
-# sub_vecs.index = dfs['id']
-# com_vecs.index = dfc['id']
+sub_vecs.index = dfs['id']
+com_vecs.index = dfc['id']
 
-# sub_vecs.to_csv(here('data/work/samples/cmw_submissions_sample_1_vectors.tsv'), sep='\t', index=True)
-# com_vecs.to_csv(here('data/work/samples/cmw_comments_sample_1_vectors.tsv'), sep='\t', index=True)
+sub_vecs.to_csv(here('data/work/samples/cmw_submissions_sample_1_vectors.tsv'), sep='\t', index=True)
+com_vecs.to_csv(here('data/work/samples/cmw_comments_sample_1_vectors.tsv'), sep='\t', index=True)
 
 
 # %% ###################################################
@@ -136,21 +136,23 @@ plt.title('average cosine similairty between submission and comments')
 plt.show()
 
 # delta vs no delta
-sns.kdeplot(dfs['consistency'], color='blue', label='delta', alpha=0.5, fill=True)
-sns.kdeplot(dfs_nodelta['consistency'], color='red', label='no delta', alpha=0.5, fill=True)
-plt.xlabel('Consistency')
-plt.legend(loc='upper right')
-plt.title('average cosine similairty between submission and comments')
+plt.figure(figsize=(10, 7))
+sns.kdeplot(1-dfs_delta['consistency'], color=sns.color_palette("deep")[0], label='delta', alpha=0.5, fill=True)
+sns.kdeplot(1-dfs_nodelta['consistency'], color=sns.color_palette("deep")[1], label='no delta', alpha=0.5, fill=True)
+plt.xlabel('Avg. BERT similarity between a post and its comments', fontsize=15)
+plt.ylabel('')
+plt.yticks([])
+plt.legend(loc='upper left', prop={'size': 19})
 plt.show()
 
-# number of comments vs consistency
+# # number of comments vs consistency
 sns.scatterplot(data=dfs, x='num_comments', y='consistency')
 plt.xlabel('Number of comments')
 plt.ylabel('Consistency')
 plt.title('num_comments vs consistency')
 plt.show()
 
-# number of unique participants vs consistency
+# # number of unique participants vs consistency
 num_participants = dfc.groupby('link_id')['author'].nunique().rename('num_participants').reset_index()
 dfs2 = dfs.copy()
 dfs2 = dfs2.merge(num_participants, left_on='id', right_on='link_id')
@@ -160,7 +162,7 @@ plt.ylabel('Consistency')
 plt.title('num_participants vs consistency')
 plt.show()
 
-# inspect outliers
+# # inspect outliers
 outliers = dfs2[dfs2['num_participants']>200]
 
 def compute_similarities(submission):
