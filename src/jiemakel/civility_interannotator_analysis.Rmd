@@ -16,24 +16,48 @@ library(irr)
 ```
 
 ```{r}
-annotation_set_l <- annotation_set %>% collect()
+annotation_set_l <- read_tsv(here("data/work/annotations/civility-annotation-set-1-parts.csv"))
 ```
-
 
 ```{r}
 civility_annotations_long <- read_csv(here("data/work/annotations/civility-marina.csv")) %>% 
-  mutate(annotator="Marina") %>%
-  union_all(
+  mutate(annotator="Marina", aset=1) %>%
+  bind_rows(
     read_csv(here("data/work/annotations/civility-kart.csv")) %>% 
-    mutate(annotator="Kärt") 
+    mutate(annotator="Kärt", aset=1) 
   ) %>%
-  union_all(
+  bind_rows(
     read_csv(here("data/work/annotations/civility-nan.csv")) %>% 
-    mutate(annotator="Nan") 
+    mutate(annotator="Nan", aset=1) 
   ) %>%
-  pivot_longer(c(ap,dd,fm,gt,im,is,jc,mc,md,pd),names_to="measure") %>%
-  mutate(value=as.integer(str_extract(value, "\\[\\{\"rating\":(\\d)\\}\\]", group=1))) %>%
-  left_join(annotation_set_l %>% select(permalink,set))
+  left_join(annotation_set_l %>% select(permalink,set)) %>%
+  bind_rows(
+    read_csv(here("data/work/annotations/civility2-marina.csv")) %>%
+    mutate(annotator="Marina", aset=2)
+  ) %>%
+  bind_rows(
+    read_csv(here("data/work/annotations/civility2-kart.csv")) %>%
+    mutate(annotator="Kärt", aset=2)
+  ) %>%
+  bind_rows(
+    read_csv(here("data/work/annotations/civility2-nan.csv")) %>%
+    mutate(annotator="Nan", aset=2)
+  ) %>%
+  bind_rows(
+    read_csv(here("data/work/annotations/civility3-marina.csv")) %>%
+    mutate(annotator="Marina", aset=3)
+  ) %>%
+  bind_rows(
+    read_csv(here("data/work/annotations/civility3-kart.csv")) %>%
+    mutate(annotator="Kärt", aset=3)
+  ) %>%
+  bind_rows(
+    read_csv(here("data/work/annotations/civility3-nan.csv")) %>%
+    mutate(annotator="Nan", aset=3)
+  ) %>%
+  pivot_longer(c(ap,ak,dd,fm,gt,im,is,ct,jc,mc,md,pd),names_to="measure") %>%
+  mutate(value=as.integer(str_extract(value, "\\[\\{\"rating\":(\\d)\\}\\]", group=1)))
+
 
 civility_annotations_wide <- civility_annotations_long %>%
   pivot_wider(values_from=value, names_from=annotator)
@@ -77,6 +101,59 @@ civility_annotations_long %>%
   geom_col() +
   theme_hsci_discrete()
 ```
+```{r}
+foo <- civility_annotations_long %>% 
+  mutate(measure=if_else(measure=="ap","ak",measure)) %>%
+  mutate(annotator=str_to_lower(annotator)) %>%
+  select(permalink,annotator,measure,value) %>%
+  union_all(id_annotations %>%
+              mutate(annotator=if_else(annotator=="kart","kärt",annotator)) %>%
+              transmute(permalink,annotator,measure="id",value=indirect_disagreement)) %>%
+  group_by(measure,annotator) %>%
+  mutate(binary=scale(value)) %>%
+  ungroup() %>%
+  pivot_wider(id_cols=c(permalink,measure),names_from=annotator,values_from=binary,values_fn=first) %>%
+    filter(!is.na(marina),!is.na(kärt),!is.na(nan)) %>% group_by(measure) %>% group_modify(.f=\(x,y) tibble(alpha=(x %>% select(-permalink) %>% as.matrix() %>% t() %>% kripp.alpha(method="interval"))$value)) %>%
+  ungroup()
+```
+
+```{r}
+ca_long_2 <- civility_annotations_long %>% 
+  mutate(measure=if_else(measure=="ap","ak",measure)) %>%
+  mutate(annotator=str_to_lower(annotator)) %>%
+  select(permalink,set,annotator,measure,value) %>%
+  union_all(id_annotations %>%
+              mutate(annotator=if_else(annotator=="kart","kärt",annotator)) %>%
+              transmute(permalink,annotator,measure="id",value=indirect_disagreement) %>% left_join(civility_annotations_long %>% select(set,permalink))) 
+```
+
+
+```{r, fig.width=10,fig.height=5}
+foo %>% 
+  mutate(measure=case_match(measure,
+                           "pd" ~ "partial disagreement",
+                           "md" ~ "mitigation",
+                           "mc" ~ "moral civility",
+                           "jc" ~ "justificatory civility",
+                           "id" ~ "indirect disagreement",
+                           "is" ~ "insults",
+                           "im" ~ "impolite words",
+                           "fm" ~ "formality",
+                           "dd" ~ "direct disagreement",
+                           "ak" ~ "acknowledgement",
+                           "ct" ~ "clarification",
+                          .default = measure
+                           )) %>%
+  mutate(measure=fct_relevel(measure,"mitigation","indirect disagreement","partial disagreement","direct disagreement","clarification","acknowledgement","moral civility","justificatory civility","formality","impolite words","insults") %>% fct_rev()) %>%
+  ggplot(aes(x=measure,y=alpha)) +
+  geom_col() +
+  theme_hsci_discrete(base_size=24) +
+  coord_flip() +
+  xlab("Feature") +
+  ylab("Krippendorff's alpha") +
+  scale_y_continuous(breaks=seq(0,1,by=0.1)) 
+```
+
 
 ```{r}
 civility_annotations_long %>%
@@ -98,7 +175,7 @@ tibble(threshold=2:7) %>%
   cross_join(civility_annotations_long) %>% 
   mutate(civil=value>=threshold) %>%
   group_by(set,permalink,threshold,measure) %>%
-  summarise(civil=any(civil),.groups="drop") %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
   count(threshold,set,measure,civil) %>%
   group_by(threshold,set,measure) %>%
   mutate(prop=n/sum(n)) %>%
@@ -114,7 +191,7 @@ tibble(threshold=2:7) %>%
 civility_annotations_long %>% 
   mutate(civil=value>=4) %>%
   group_by(set,permalink,measure) %>%
-  summarise(civil=any(civil),.groups="drop") %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
   count(set,measure,civil) %>%
   group_by(set,measure) %>%
   mutate(prop=n/sum(n)) %>%
@@ -131,9 +208,94 @@ civility_annotations_long %>%
   filter(!measure %in% c("dd","is")) %>%
   mutate(civil=value>=4) %>%
   group_by(set,permalink,measure) %>%
-  summarise(civil=any(civil),.groups="drop") %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
   group_by(set,permalink) %>%
   summarise(civil=sum(civil)>=2,.groups="drop") %>%
+  count(set,civil) %>%
+  group_by(set) %>%
+  mutate(prop=n/sum(n)) %>%
+  filter(civil) %>%
+  ggplot(aes(x=set,y=prop)) + 
+  geom_col() +
+  coord_flip() +
+  theme_hsci_discrete()
+```
+```{r,fig.width=10,fig.height=5}
+ca_long_2 %>% 
+  mutate(value=value-1) %>%
+  filter(!is.na(value),measure!="gt") %>%
+  distinct() %>%
+  group_by(measure) %>%
+  summarise(value=sum(value)) %>%
+mutate(measure=case_match(measure,
+                           "pd" ~ "partial disagreement",
+                           "md" ~ "mitigation",
+                           "mc" ~ "moral civility",
+                           "jc" ~ "justificatory civility",
+                           "id" ~ "indirect disagreement",
+                           "is" ~ "insults",
+                           "im" ~ "impolite words",
+                           "fm" ~ "formality",
+                           "dd" ~ "direct disagreement",
+                           "ak" ~ "acknowledgement",
+                           "ct" ~ "clarification",
+                          .default = measure
+                           )) %>%
+  mutate(measure=fct_relevel(measure,"mitigation","indirect disagreement","partial disagreement","direct disagreement","clarification","acknowledgement","moral civility","justificatory civility","formality","impolite words","insults") %>% fct_rev()) %>%  
+  ggplot(aes(x=measure,y=value)) +
+  geom_col() +
+  coord_flip() +
+  theme_hsci_discrete(base_size=24) +
+  xlab("Feature") +
+  ylab("Sum of Likert values")
+```
+
+
+
+```{r,fig.width=10,fig.height=6}
+ca_long_2 %>% 
+  filter(!is.na(value)) %>%
+   filter(!measure %in% c("dd","is")) %>%
+  mutate(set=case_when(
+    str_detect(set,"unpopular") ~ "/r/UnpopularOpinion",
+    str_detect(set,"random_sample") ~ "The whole of Reddit",
+    str_detect(set,"eli5") ~ "/r/ExplainLikeImFive",
+    str_detect(set,"aita") ~ "/r/AmITheAsshole",
+    str_detect(set,"cmw") ~ "All of /r/ChangeMyView",
+    str_detect(set,"data_driven_civil_discourse_subset_[234]") ~ "Data-driven civil subset",
+    str_detect(set,"best_of") ~ "The whole of Reddit",
+  )) %>%
+  filter(!is.na(set)) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,permalink,measure) %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil)>=2,.groups="drop") %>%
+  count(set,civil) %>%
+  group_by(set) %>%
+  mutate(prop=n/sum(n)) %>%
+  filter(civil) %>%
+  ungroup() %>%
+  mutate(set=fct_reorder(set,prop)) %>%
+  ggplot(aes(x=set,y=prop)) + 
+  geom_col() +
+  coord_flip() +
+  theme_hsci_discrete(base_size = 24) +
+  xlab("Dataset") +
+  ylab("Percentage of posts annotated as civil") +
+  scale_y_continuous(labels=scales::percent, breaks=seq(0,1,by=0.2))
+```
+
+
+```{r}
+civility_annotations_long %>% 
+  filter(measure!="fm") %>%
+  mutate(negative=measure %in% c("dd","is")) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,negative,permalink,measure) %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil&!negative)-sum(civil&negative)>=1,.groups="drop") %>%
   count(set,civil) %>%
   group_by(set) %>%
   mutate(prop=n/sum(n)) %>%
@@ -146,12 +308,25 @@ civility_annotations_long %>%
 
 ```{r}
 civility_annotations_long %>% 
+  filter(measure!="fm") %>%
   mutate(negative=measure %in% c("dd","is")) %>%
   mutate(civil=value>=4) %>%
   group_by(set,negative,permalink,measure) %>%
-  summarise(civil=any(civil),.groups="drop") %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
   group_by(set,permalink) %>%
   summarise(civil=sum(civil&!negative)-sum(civil&negative)>=1,.groups="drop") %>%
+  write_tsv(here("data/work/civil-or-not-annotations-derived-from-human-annotations.csv"))
+```
+
+
+```{r}
+civility_annotations_long %>% 
+  filter(!measure %in% c("dd","is","fm")) %>%
+  mutate(civil=value>=4) %>%
+  group_by(set,permalink,measure) %>%
+  summarise(civil=any(civil,na.rm=T),.groups="drop") %>%
+  group_by(set,permalink) %>%
+  summarise(civil=sum(civil)>=1,.groups="drop") %>%
   count(set,civil) %>%
   group_by(set) %>%
   mutate(prop=n/sum(n)) %>%

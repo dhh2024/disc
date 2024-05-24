@@ -16,11 +16,21 @@ library(irr)
 ```
 
 ```{r}
-intervention_annotations <- read_csv(here("data/work/annotations/interventions-samuli.csv")) %>% 
+intervention_annotations <- read_csv(here("data/work/annotations/interventions-samuli-3.csv")) %>% 
   mutate(annotator="Samuli") %>%
   union_all(
-    read_csv(here("data/work/annotations/interventions-ylva.csv")) %>% 
+    read_csv(here("data/work/annotations/interventions-ylva-3.csv")) %>% 
     mutate(annotator="Ylva") 
+  ) %>% 
+  bind_rows(
+    read_csv(here("data/work/annotations/interventions-samuli-2.csv")) %>% 
+    mutate(subreddit="cmw") %>%
+    mutate(annotator="Samuli")
+  ) %>% 
+  bind_rows(
+    read_csv(here("data/work/annotations/interventions-ylva-2.csv")) %>% 
+    mutate(subreddit="cmw") %>%
+    mutate(annotator="Ylva")
   )
 ```
 
@@ -62,3 +72,31 @@ intervention_annotations %>%
                select(permalink,intervention_samuli=intervention), join_by(permalink)) %>%
   filter(intervention_ylva!=intervention_samuli)
 ```
+
+```{r}
+intervention_annotations_long <- intervention_annotations %>%
+  pivot_longer(c(ap,dd,fm,im,is,jc,mc,md,pd),names_to="measure") %>%
+  mutate(value=as.integer(str_extract(value, "\\[\\{\"rating\":(\\d)\\}\\]", group=1)))
+
+```
+
+```{r}
+intervention_annotations_long %>% 
+  filter(intervention %in% c("Yes","No")) %>%
+  group_by(intervention,measure) %>% 
+  summarise(mvalue=mean(value,na.rm=T)) %>% 
+  ggplot(aes(x=measure,y=mvalue,color=intervention)) + 
+  geom_point() +
+  coord_flip() +
+  theme_hsci_discrete()
+```
+
+```{r}
+intervention_annotations %>%
+  group_by(subreddit,permalink) %>%
+  summarise(intervention=all(intervention=="Yes",na.rm=T)) %>%
+  count(subreddit,intervention) %>%
+  group_by(subreddit) %>%
+  mutate(prop=n/sum(n))
+```
+

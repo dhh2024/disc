@@ -99,17 +99,91 @@ d9 <- random_sample_comments_a %>%
 ```
 
 ```{r}
-annotation_set <- d1 %>% 
-  union_all(d2) %>%
-  union_all(d3) %>%
-  union_all(d4) %>%
-  union_all(d5) %>%
-  union_all(d6) %>%
-  union_all(d7) %>%
-  union_all(d8) %>%
-  union_all(d9) %>%
-  distinct() %>%
+annotation_set <- random_sample_comments_a %>% 
+  distinct(link_id) %>%
+  slice_sample(n=20) %>%
+  inner_join(random_sample_comments_a) %>%
+  group_by(link_id) %>%
+  slice_sample(n=1) %>%
+  ungroup() %>%
+  mutate(set="random_sample") %>%
+  compute_a() %>%
+  union_all(unpopularopinion_comments_a %>% 
+    distinct(link_id) %>%
+    slice_sample(n=20) %>%
+    inner_join(unpopularopinion_comments_a) %>%
+    group_by(link_id) %>%
+    slice_sample(n=1) %>%
+    ungroup() %>%
+    mutate(set="unpopularopinion") %>%
+    compute_a()
+  ) %>%
+  union_all(data_driven_civil_discourse_subset_a %>% 
+    distinct(link_id) %>%
+    slice_sample(n=20) %>%
+    inner_join(data_driven_civil_discourse_subset_a) %>%
+    group_by(link_id) %>%
+    slice_sample(n=1) %>%
+    ungroup() %>%
+    mutate(set="data_driven_civil_discourse_subset") %>%
+    compute_a()
+  ) %>%  
+  union_all(unpopularopinion_comments_a %>% 
+    distinct(link_id) %>%
+    slice_sample(n=20) %>%
+    inner_join(unpopularopinion_comments_a) %>%
+    group_by(link_id) %>%
+    slice_sample(n=1) %>%
+    ungroup() %>%
+    mutate(set="eli5") %>%
+    compute_a()
+  ) %>%
+  union_all(aita_comments_a %>% 
+    distinct(link_id) %>%
+    slice_sample(n=20) %>%
+    inner_join(aita_comments_a) %>%
+    group_by(link_id) %>%
+    slice_sample(n=1) %>%
+    ungroup() %>%
+    mutate(set="aita") %>%
+    compute_a()
+  ) %>%
   compute_a()
+```
+
+
+```{r}
+annotation_set <- 
+  t %>%
+  inner_join(cmw_comments_a) %>%
+  inner_join(cmw_stop_arguing_comment_ancestors_a %>% select(id=ancestor_id)) %>%
+  mutate(set="cmw_before_stop_arguing") %>%
+  union_all(t %>% 
+    inner_join(cmw_comments_a) %>%
+    inner_join(cmw_stop_arguing_comment_descendants_a %>% select(id=descendant_id)) %>%
+    mutate(set="cmw_after_stop_arguing")    
+  ) %>%
+  collect() %>%
+  #d1 %>% 
+  #mutate(set="cmw_before_stop_arguing") %>%
+  #union_all(d2 %>% 
+  #  mutate(set="cmw_after_stop_arguing")) %>%
+  union_all(d3 %>%
+              mutate(set="all_cmw") %>% collect()) %>%
+  union_all(d4 %>%
+              mutate(set="data_driven_civil_discourse_subset") %>% collect()) %>%
+  union_all(d5 %>%
+              mutate(set="aita") %>% collect()) %>%
+  union_all(d6 %>%
+              mutate(set="eli5") %>% collect()) %>%
+  union_all(d7 %>%
+              mutate(set="unpopularopinion") %>% collect()) %>%
+  union_all(d8 %>%
+              mutate(set="best_of_reddit_set") %>% collect()) %>%
+  union_all(d9 %>%
+              mutate(set="random_sample") %>% collect()) %>%
+  distinct() %>%
+  copy_to_a(con)
 ```
 
 ```{r}
@@ -164,6 +238,12 @@ ancestor_texts <- ancestors %>%
 ```
 
 ```{r}
+t <- civility_annotations_long %>% 
+  distinct(permalink) %>% 
+  copy_to_a(con)
+```
+
+```{r}
 annotation_set %>%
   left_join(op_texts) %>%
   left_join(ancestor_texts) %>%
@@ -171,3 +251,11 @@ annotation_set %>%
   collect() %>%
   write_tsv(here("data/work/civility_annotation_set.tsv"), quote="needed",na="")
 ```
+
+```{r}
+annotation_set %>%
+  mutate_all(as.character()) %>%
+  collect() %>%
+  write_tsv(here("data/work/civility_annotation_set_2.tsv"), quote="needed", na="")
+```
+

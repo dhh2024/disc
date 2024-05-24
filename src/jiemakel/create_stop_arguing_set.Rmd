@@ -1,0 +1,112 @@
+---
+title: "Before and after stop arguing"
+date: "`r Sys.Date()`"
+output: 
+  html_notebook:
+    code_folding: hide
+    toc: yes
+  md_document:
+    variant: gfm 
+    toc: yes
+---
+
+```{r setup}
+source(here::here("src/common_basis.R"))
+```
+
+```{r}
+annotation_set <- stop_arguing_stop_arguing_comments_a %>%
+  filter(subreddit %in% c("unpopularopinion","todayilearned","teenagers")) %>%
+  group_by(subreddit) %>%
+  slice_sample(n=50) %>%
+  compute_a()
+```
+
+
+```{r}
+stop_arguing_comment_ancestors_a <- tbl(con, sql(glue("
+WITH RECURSIVE cmw_stop_arguing_comment_ancestors AS (
+    SELECT id, parent_comment_id AS ancestor_id, 1 AS height 
+    FROM {annotation_set %>% dbplyr::remote_name()}
+  UNION ALL
+    SELECT ca.id, c.parent_comment_id AS ancestor_id, height + 1 AS height
+    FROM cmw_stop_arguing_comment_ancestors ca, stop_arguing_comments_a c
+    WHERE ca.ancestor_id = c.id AND c.parent_comment_id IS NOT NULL
+)
+SELECT * FROM cmw_stop_arguing_comment_ancestors"))) %>%
+  compute_a(unique_indexes=list(c("id","ancestor_id"), c("ancestor_id","id")))
+```
+
+```{r}
+stop_arguing_comment_descendants_a <- tbl(con, sql(glue("
+WITH RECURSIVE stop_arguing_comment_descendants AS (
+    SELECT sa.id, ca.id AS descendant_id, 1 AS height 
+    FROM {annotation_set %>% dbplyr::remote_name()} sa, stop_arguing_comments_a ca
+    WHERE ca.parent_comment_id = sa.id
+  UNION ALL
+    SELECT ca.id, c.id AS descendant_id, height + 1 AS height
+    FROM stop_arguing_comment_descendants ca, stop_arguing_comments_a c
+    WHERE ca.descendant_id = c.parent_comment_id
+)
+SELECT * FROM stop_arguing_comment_descendants"))) %>%
+  compute_a(unique_indexes=list(c("id","descendant_id"), c("descendant_id","id")))
+```
+
+```{r}
+stop_arguing_set_l <- stop_arguing_comment_ancestors_a %>% 
+  inner_join(stop_arguing_comments_a,(join_by(ancestor_id==id))) %>% 
+  mutate(set="before") %>%
+  rename(id=ancestor_id, stop_arguing_comment_id=id) %>%
+  union_all(
+    annotation_set %>% 
+      distinct(stop_arguing_comment_id=id,id=link_id) %>%
+      inner_join(stop_arguing_submissions_a) %>%
+      mutate(set="submission") %>%
+      rename(body=selftext)
+  ) %>%
+  union_all(
+    annotation_set %>%
+      mutate(stop_arguing_comment_id=id) %>%
+      mutate(set="stop arguing comment")
+  ) %>%
+  union_all(
+    stop_arguing_comment_descendants_a %>% 
+    inner_join(stop_arguing_comments_a,(join_by(descendant_id==id))) %>% 
+    mutate(set="after") %>%
+    rename(id=descendant_id, stop_arguing_comment_id=id)
+  ) %>%
+  arrange(stop_arguing_comment_id,created_utc) %>%
+  mutate_all(as.character) %>%
+  collect()
+```
+
+```{r}
+stop_arguing_set_l %>%
+  write_tsv(here("data/work/cmw_stop_arguing_set.tsv"), quote="needed",na="")
+```
+
+```{r}
+stop_arguing_set_l <- stop_arguing_set_l %>%
+  filter(set=="stop arguing comment") %>%
+  left_join(stop_arguing_set_l %>% 
+              filter(set=="submission") %>%
+              select(stop_arguing_comment_id, op_text=body)
+  ) %>%
+  left_join(stop_arguing_set_l %>%
+              filter(set=="before") %>%
+              group_by(stop_arguing_comment_id) %>%
+              arrange(created_utc) %>%
+              summarise(before_text=str_flatten(str_c(author, ' @ ', created_utc, ' :\n\n', body), collapse="\n\n--------------------------------\n\n"))
+            ) %>%
+  left_join(stop_arguing_set_l %>%
+              filter(set=="after") %>%
+              group_by(stop_arguing_comment_id) %>%
+              arrange(created_utc) %>%
+              summarise(after_text=str_flatten(str_c(author, ' @ ', created_utc, ' :\n\n', body), collapse="\n\n--------------------------------\n\n"))
+            )
+```
+
+```{r}
+stop_arguing_set_l %>%
+  write_tsv(here("data/work/stop_arguing_intervention_set_with_context.tsv"), quote="needed",na="")
+```

@@ -132,7 +132,7 @@ cmw_submissions_a %>%
   ylab("N submissions")
 ```
 
-```{r}
+```{r,fig.height=5,fig.width=8}
 library(ggpointdensity)
 cmw_submissions_a %>% 
   left_join(cmw_delta_comments_a %>% select(id=link_id) %>% count(id, name="deltas")) %>%
@@ -148,10 +148,10 @@ cmw_submissions_a %>%
   geom_point() +
   geom_smooth() +
   scale_x_continuous(breaks=seq(0,8000,by=10)) +
-  theme_hsci_continuous() +
+  theme_hsci_continuous(base_size = 24) +
   scale_y_continuous(labels=scales::percent) +
   xlab("Number of comments under submission") +
-  ylab("Proportion of submissions having a delta")
+  ylab("Chance of changing a view")
 ```
 
 ```{r}

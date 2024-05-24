@@ -1,0 +1,151 @@
+---
+title: "Civility annotation set 2"
+date: "`r Sys.Date()`"
+output: 
+  html_notebook:
+    code_folding: hide
+    toc: yes
+  md_document:
+    variant: gfm 
+    toc: yes
+---
+
+```{r setup}
+source(here::here("src/common_basis.R"))
+```
+
+```{r}
+comments <- random_sample_comments_a
+cur_depth = 1L
+
+new_comment_depths <- comments %>%
+  filter(is.na(parent_comment_id)) %>% 
+  select(id) %>%
+  slice_sample(n=100000) %>%
+  transmute(id, depth=cur_depth) %>%
+  compute_a(unique_indexes=list(c("id")))
+
+comment_depths <- new_comment_depths
+n_new <- new_comment_depths %>% count() %>% pull()
+
+while(n_new != 0 & cur_depth < 20) {
+  print(str_c(cur_depth,": ",n_new))
+  cur_depth <- cur_depth + 1L
+  new_comment_depths <- new_comment_depths %>%
+    select(parent_comment_id=id) %>%
+    inner_join(comments %>% select(id, parent_comment_id), join_by(parent_comment_id)) %>%
+    transmute(id, depth=cur_depth) %>%
+    compute_a(unique_indexes=list(c("id")))
+  comment_depths <- comment_depths %>% 
+    union_all(new_comment_depths) %>%
+    compute_a(unique_indexes=list(c("id")))
+  n_new <- new_comment_depths %>% count() %>% pull()
+}
+```
+```{r}
+random_sample_sample <- comment_depths %>%
+  filter(depth==3) %>%
+  slice_sample(n=18) %>%
+  mutate(set="random_sample_3") %>%
+  union_all(
+    comment_depths %>%
+      filter(depth>=4,depth<=9) %>%
+      slice_sample(n=18) %>%
+      mutate(set="random_sample_4-9")
+  ) %>%
+  union_all(
+    comment_depths %>%
+      filter(depth>=10) %>%
+      slice_sample(n=18) %>%
+      mutate(set="random_sample_10-19")
+  ) %>%
+  union_all(
+    comment_depths %>%
+      filter(depth==2) %>%
+      slice_sample(n=18) %>%
+      mutate(set="random_sample_2")
+  ) %>%
+  inner_join(comments) %>%
+  mutate_all(as.character) %>%
+  collect()
+```
+
+```{r}
+s2 <- random_sample_sample %>%
+  union_all(eli5_sample) %>%
+  union_all(unpopularopinion_sample)
+
+chunk_1 <- s2 %>%
+  group_by(set) %>%
+  slice_sample(n=6) %>%
+  ungroup() %>%
+  union_all(data_driven_civil_discourse_subset_sample %>% select(-height))
+  
+
+chunk_2 <- s2 %>%
+  anti_join(chunk_1, join_by(id)) %>%
+  group_by(set) %>%
+  slice_sample(n=6) %>%
+  ungroup() %>%
+  union_all(data_driven_civil_discourse_subset_sample %>% select(-height))
+
+chunk_3 <- s2 %>%
+  anti_join(chunk_1, join_by(id)) %>%
+  anti_join(chunk_2, join_by(id)) %>%
+  union_all(data_driven_civil_discourse_subset_sample %>% select(-height))
+
+chunk_1 %>% write_csv(here("data/work/civility_annotation_set_3_chunks_1-3_kart.csv"))
+chunk_2 %>% write_csv(here("data/work/civility_annotation_set_3_chunks_1-3_marina.csv"))
+chunk_3 %>% write_csv(here("data/work/civility_annotation_set_3_chunks_1-3_nan.csv"))
+```
+
+
+```{r}
+s1 <- comment_depths %>%
+  filter(depth==3) %>%
+  slice_sample(n=18) %>%
+  mutate(set="cmw_3") %>%
+  union_all(
+    rest %>%
+      slice_sample(n=18) %>%
+      mutate(set="cmw_rest")
+  ) %>%
+  union_all(
+    comment_depths %>%
+      filter(depth>3) %>%
+      slice_sample(n=18) %>%
+      mutate(set="cmw_4-9")
+  ) %>%
+  union_all(
+    comment_depths %>%
+      filter(depth==2) %>%
+      slice_sample(n=18) %>%
+      mutate(set="cmw_2")
+  ) %>%
+  inner_join(comments) %>%
+  mutate_all(as.character) %>%
+  collect()
+```
+
+```{r}
+c <- data_driven_civil_discourse_subset_a %>% 
+  distinct(link_id) %>%
+  slice_sample(n=30) %>%
+  inner_join(data_driven_civil_discourse_subset_a) %>%
+  group_by(link_id) %>%
+  slice_sample(n=1) %>%
+  ungroup() %>%
+  mutate(set="data_driven_civil_discourse_subset") %>%
+  mutate_all(as.character) %>%
+  collect()
+```
+
+```{r}
+kart <- read_tsv(here("data/work/civility_annotation_iset_3.tsv"),col_types='c') %>% 
+  rename(depth=height) %>%
+  union_all(read_tsv(here("data/work/civility_annotation_set_3_s1_chunk_kart.tsv"),col_types='c')) %>%
+  union_all(read_tsv(here("data/work/civility_annotation_set_3_s2_chunk_kart.tsv"),col_types='c')) %>%                       
+  union_all(read_tsv(here("data/work/civility_annotation_set_3_s3_chunk_kart.tsv"),col_types='c')) %>%                       
+  union_all(read_tsv(here("data/work/civility_annotation_set_3_s4_chunk_kart.tsv"),col_types='c'))
+```
+
