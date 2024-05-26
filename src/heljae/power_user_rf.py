@@ -19,13 +19,13 @@ DATA_DIR = here("data")
 
 power_user_delta_comments = pd.read_parquet('dhh24/disc/parquet/power_user_cmv_all_comments.parquet', filesystem=get_s3fs(),engine="pyarrow")
 power_users = power_user_delta_comments['author'].unique()
-delta_comments_subsample = power_user_delta_comments[~power_user_delta_comments['body'].str.contains(r"\[removed\]|deleted", na=True)] # if body is NaN it doesn't exist, so it's 'the same' as deleted
+delta_comments_subsample = power_user_delta_comments[~power_user_delta_comments['body'].str.contains(r"\[removed\]|\[deleted\]|your comment has been removed", na=True)] # if body is NaN it doesn't exist, so it's 'the same' as deleted
 delta_comments_subsample = delta_comments_subsample.sample(4000).copy()
 delta_comments_subsample["power_user"] = 1
 
 #%%
 random_sample_comments = pd.read_csv(here("data/work/samples/cmw_comments_sample_1.tsv"), sep="\t")
-random_sample_comments = random_sample_comments[~random_sample_comments['body'].str.contains(r"\[removed\]|deleted", na=True)]
+random_sample_comments = random_sample_comments[~random_sample_comments['body'].str.contains(r"\[removed\]|\[deleted\]|your comment has been removed", na=True)]
 random_sample_comments = random_sample_comments[~random_sample_comments['author'].isin(power_users)]
 random_sample_comments = random_sample_comments.sample(4000).copy()
 random_sample_comments["power_user"] = 0

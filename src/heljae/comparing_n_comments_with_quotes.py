@@ -1,21 +1,23 @@
 # compare number comments with quotes in cmv comments and random comments
 # 
+from hereutil import here, add_to_sys_path
+add_to_sys_path(here())
 
 expression = r"\s*>.[\sA-Za-z\d\"\']+|\s*\&gt;"
 
 import pandas as pd
 
-cmv_comments = pd.read_csv("../../data/work/samples/cmw_comments_sample_1.tsv", sep="\t")
+cmv_comments = pd.read_csv(here("data/work/samples/cmw_comments_sample_1.tsv"), sep="\t")
 # filter out posts whose text is deleted
-cmv_comments = cmv_comments[cmv_comments.body != "[deleted]"]
+cmv_comments = cmv_comments[~cmv_comments['body'].str.contains(r"\[removed\]|\[deleted\]|your comment has been removed", na=True)]
 n_cmv = cmv_comments.shape[0] # number of filtered comments
 
-rand_comments = pd.read_csv("../../data/work/samples/random_sample_comments_sample_1.tsv", sep="\t")
-rand_comments = rand_comments[rand_comments.body != "[deleted]"]
+rand_comments = pd.read_csv(here("data/work/samples/random_sample_comments_sample_1.tsv"), sep="\t")
+rand_comments = rand_comments[~rand_comments['body'].str.contains(r"\[removed\]|\[deleted\]|your comment has been removed", na=True)]
 n_rand = rand_comments.shape[0]
 
-aita_comments = pd.read_csv("../../data/work/samples/aita_comments_sample_1.tsv", sep="\t")
-aita_comments = aita_comments[aita_comments.body != "[deleted]"]
+aita_comments = pd.read_csv(here("data/work/samples/aita_comments_sample_1.tsv"), sep="\t")
+aita_comments = aita_comments[~aita_comments['body'].str.contains(r"\[removed\]|\[deleted\]|your comment has been removed", na=True)]
 n_aita = aita_comments.shape[0]
 
 # search for quotes

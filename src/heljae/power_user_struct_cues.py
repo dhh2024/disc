@@ -68,6 +68,7 @@ def draw_histogram(s1, s2, s1_name, s2_name, title, xlab, xticks, color):
     ax[1].axvline(s2.array.mean(), color='k', linestyle='dashed', linewidth=1, label='mean')
     ax[1].text(s2.array.mean()+5,5,round(s2.array.mean(),1))
     ax[1].set_title(s2_name)
+    plt.show()
 
 
 
